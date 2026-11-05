@@ -45,8 +45,10 @@ public final class GhostSkillChannels {
      * @param key     按键标记（N/G/V/J），默认技能为空串
      * @param label   显示名
      * @param channel 要发的通道
+     * @param payload 包体怎么写；{@code null} 表示空包
      */
-    public record Entry(String key, String label, Identifier channel) {
+    public record Entry(String key, String label, Identifier channel,
+                        java.util.function.Consumer<net.minecraft.network.PacketByteBuf> payload) {
     }
 
     /**
@@ -105,12 +107,13 @@ public final class GhostSkillChannels {
     /**
      * 登记一条不走 {@code _skill} 命名的技能通道。
      */
-    public static void registerExtra(String ghostType, String key, Identifier channel, String label) {
+    public static void registerExtra(String ghostType, String key, Identifier channel, String label,
+                                     java.util.function.Consumer<net.minecraft.network.PacketByteBuf> payload) {
         if (ghostType == null || channel == null) {
             return;
         }
         EXTRA.computeIfAbsent(ghostType, ignored -> new ArrayList<>())
-                .add(new Entry(key == null ? "" : key, label, channel));
+                .add(new Entry(key == null ? "" : key, label, channel, payload));
     }
 
     /**
@@ -148,13 +151,18 @@ public final class GhostSkillChannels {
     }
 
     /**
-     * 发一个空包。这些技能包都不读参数（读参数的是多参技能，本来也不该一键放）。
+     * 发一个技能包。绝大多数技能不读参数（空包），个别通道需要带标记，
+     * 由 {@link Entry#payload} 决定。
      */
-    public static void dispatch(Identifier channel) {
-        if (channel == null) {
+    public static void dispatch(Entry entry) {
+        if (entry == null || entry.channel() == null) {
             return;
         }
-        ClientPlayNetworking.send(channel, PacketByteBufs.empty());
+        var buf = PacketByteBufs.create();
+        if (entry.payload() != null) {
+            entry.payload().accept(buf);
+        }
+        ClientPlayNetworking.send(entry.channel(), buf);
     }
 
     private static void ensureScanned() {
@@ -198,7 +206,7 @@ public final class GhostSkillChannels {
             }
             String label = GhostNames.of(body) + (key.isEmpty() ? "" : " " + key + " 键");
             BY_GHOST.computeIfAbsent(body, ignored -> new ArrayList<>())
-                    .add(new Entry(key, label, channel));
+                    .add(new Entry(key, label, channel, null));
         }
 
         for (List<Entry> list : BY_GHOST.values()) {

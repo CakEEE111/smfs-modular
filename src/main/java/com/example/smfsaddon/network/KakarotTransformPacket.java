@@ -1,9 +1,9 @@
 package com.example.smfsaddon.network;
 
 import com.example.smfsaddon.SmfsAddon;
+import com.example.smfsaddon.manager.KakarotSlots;
 import com.xie.smfs.common.events.PlayerEvents;
 import com.xie.smfs.manager.GhostDomainManager;
-import com.xie.smfs.manager.MainGhostManager;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -36,30 +36,45 @@ public final class KakarotTransformPacket {
 
     private static void receive(MinecraftServer server, ServerPlayerEntity player,
                                 ServerPlayNetworkHandler handler, PacketByteBuf buf, PacketSender sender) {
-        server.execute(() -> toggle(player));
+        // 面板发来的包带 true（允许融合物品），按键发来的带 false（只认鬼槽）。
+        // 老包没有这个字节时按 false 处理，宁严不松。
+        boolean allowFused = buf.isReadable() && buf.readBoolean();
+        server.execute(() -> toggle(player, allowFused));
     }
 
-    private static void toggle(ServerPlayerEntity player) {
+    /**
+     * @param allowFused 是否允许"只融在物品上"的卡卡罗特（面板 = true，按键 = false）
+     */
+    private static void toggle(ServerPlayerEntity player, boolean allowFused) {
         // 已变身 → 直接关掉（收尾逻辑在 onRemoved 里）
         if (player.hasStatusEffect(SmfsAddon.SUPER_SAIYAN)) {
             player.removeStatusEffect(SmfsAddon.SUPER_SAIYAN);
             return;
         }
 
-        // 开启条件：主鬼是卡卡罗特 + 等级 10
-        GhostDomainManager.SkillCheckResult check = GhostDomainManager.canUseGhostSkill(
-                player, "kakarot_ghost", SmfsAddon.KAKAROT_GHOST_ITEM, REQUIRED_GHOST_LEVEL);
-
-        if (check == GhostDomainManager.SkillCheckResult.NO_GHOST) {
-            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.no_ghost"), true);
-            return;
-        }
-        if (check == GhostDomainManager.SkillCheckResult.LEVEL_TOO_LOW) {
-            int slot = MainGhostManager.getMainGhostSlot(player);
+        if (!allowFused) {
+            // 按键路径：必须在鬼槽里养着，且到 10 级。
+            // 注意不能走 canUseGhostSkill —— 它对融合物品是放行的（那正是面板要的），
+            // 用它判"按键"就等于没判。
+            int slot = KakarotSlots.findSlot(player);
+            if (slot < 0) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.slot_only"), true);
+                return;
+            }
             int current = PlayerEvents.getGhostSlotLevel(player, slot);
-            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.level_low",
-                    current, REQUIRED_GHOST_LEVEL), true);
-            return;
+            if (current < REQUIRED_GHOST_LEVEL) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.level_low",
+                        current, REQUIRED_GHOST_LEVEL), true);
+                return;
+            }
+        } else {
+            // 面板路径：槽里的、以及只融在物品上的都放行
+            GhostDomainManager.SkillCheckResult check = GhostDomainManager.canUseGhostSkill(
+                    player, "kakarot_ghost", SmfsAddon.KAKAROT_GHOST_ITEM, REQUIRED_GHOST_LEVEL);
+            if (check == GhostDomainManager.SkillCheckResult.NO_GHOST) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.no_ghost"), true);
+                return;
+            }
         }
 
         // 无冷却、无固定时长：常驻到玩家再按一次或死亡

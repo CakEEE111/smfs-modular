@@ -52,10 +52,13 @@ public class SmfsAddonClient implements ClientModInitializer {
      * 按通道后缀扫不到。与其改协议名，不如自己登记。
      */
     private void registerOwnSkillChannels() {
+        // 面板通道带一个 true：从面板走 = 允许融合物品；按键走 = 只认鬼槽（见两个包的 gate）
+        java.util.function.Consumer<net.minecraft.network.PacketByteBuf> fromPanel =
+                buf -> buf.writeBoolean(true);
         GhostSkillChannels.registerExtra("kakarot_ghost", "R",
-                com.example.smfsaddon.network.KakarotTransformPacket.ID, "变身（R 键）");
+                com.example.smfsaddon.network.KakarotTransformPacket.ID, "变身（R 键）", fromPanel);
         GhostSkillChannels.registerExtra("kakarot_ghost", "C",
-                com.example.smfsaddon.network.KakarotKamehamehaPacket.ID, "龟派气功（C 键）");
+                com.example.smfsaddon.network.KakarotKamehamehaPacket.ID, "龟派气功（C 键）", fromPanel);
     }
 
     /**
@@ -116,11 +119,17 @@ public class SmfsAddonClient implements ClientModInitializer {
             }
 
             // 是否满足条件交给服务端判断，客户端只负责把请求发出去
+            // 按键路径带 false：只认真的养在鬼槽里的卡卡罗特。
+            // 融合在物品上的从技能面板（X）放，那边带 true。
             while (TRANSFORM_KEY.wasPressed()) {
-                ClientPlayNetworking.send(KakarotTransformPacket.ID, PacketByteBufs.empty());
+                var buf = PacketByteBufs.create();
+                buf.writeBoolean(false);
+                ClientPlayNetworking.send(KakarotTransformPacket.ID, buf);
             }
             while (KAMEHAMEHA_KEY.wasPressed()) {
-                ClientPlayNetworking.send(KakarotKamehamehaPacket.ID, PacketByteBufs.empty());
+                var buf = PacketByteBufs.create();
+                buf.writeBoolean(false);
+                ClientPlayNetworking.send(KakarotKamehamehaPacket.ID, buf);
             }
         });
     }

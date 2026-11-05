@@ -106,8 +106,8 @@ public class GhostSkillPaletteScreen extends Screen {
                 this.addDrawableChild(ButtonWidget.builder(
                                 Text.literal("§f" + entry.label()),
                                 button -> {
-                                    // 直接发本体自己的技能包：冷却、资格、复苏平衡都在包里
-                                    GhostSkillChannels.dispatch(entry.channel());
+                                    // 直接发本体/模组自己的技能包：冷却、资格、复苏平衡都在包里
+                                    GhostSkillChannels.dispatch(entry);
                                     this.close();
                                 })
                         .dimensions(this.width / 2 - 100, y, 200, 20)

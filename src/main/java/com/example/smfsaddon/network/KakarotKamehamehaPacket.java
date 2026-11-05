@@ -64,21 +64,30 @@ public final class KakarotKamehamehaPacket {
 
     private static void receive(MinecraftServer server, ServerPlayerEntity player,
                                 ServerPlayNetworkHandler handler, PacketByteBuf buf, PacketSender sender) {
-        server.execute(() -> tryCast(player));
+        // 与变身同一套口径：面板带 true（允许融合物品），按键带 false（只认鬼槽）
+        boolean allowFused = buf.isReadable() && buf.readBoolean();
+        server.execute(() -> tryCast(player, allowFused));
     }
 
-    private static void tryCast(ServerPlayerEntity player) {
-        // 1) 主鬼校验（本体 canUseGhostSkill）
-        GhostDomainManager.SkillCheckResult result = GhostDomainManager.canUseGhostSkill(
-                player, "kakarot_ghost", SmfsAddon.KAKAROT_GHOST_ITEM, -1);
-
-        if (result == GhostDomainManager.SkillCheckResult.NO_GHOST) {
-            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.no_ghost"), true);
-            return;
-        }
-        if (result == GhostDomainManager.SkillCheckResult.LEVEL_TOO_LOW) {
-            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.level_too_low"), true);
-            return;
+    private static void tryCast(ServerPlayerEntity player, boolean allowFused) {
+        // 1) 资格
+        if (!allowFused) {
+            // 按键路径：必须在鬼槽里养着（canUseGhostSkill 对融合物品是放行的，不能拿它判按键）
+            if (com.example.smfsaddon.manager.KakarotSlots.findSlot(player) < 0) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.slot_only"), true);
+                return;
+            }
+        } else {
+            GhostDomainManager.SkillCheckResult result = GhostDomainManager.canUseGhostSkill(
+                    player, "kakarot_ghost", SmfsAddon.KAKAROT_GHOST_ITEM, -1);
+            if (result == GhostDomainManager.SkillCheckResult.NO_GHOST) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.no_ghost"), true);
+                return;
+            }
+            if (result == GhostDomainManager.SkillCheckResult.LEVEL_TOO_LOW) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.level_too_low"), true);
+                return;
+            }
         }
 
         // 2) 冷却（本体冷却系统，自带"冷却中，剩余 x 秒"提示）
