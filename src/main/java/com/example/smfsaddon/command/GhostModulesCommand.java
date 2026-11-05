@@ -342,7 +342,12 @@ public final class GhostModulesCommand {
 
         source.sendFeedback(() -> Text.literal("§8=== 厉鬼质量检测 ==="), false);
         double distance = player == null ? 0.0D : Math.sqrt(player.squaredDistanceTo(ghost));
-        String head = "§f" + ghost.getName().getString() + " §8(" + typeId + ")"
+        // 实体名对本体鬼来说都是一句通用话（"未知规则的厉鬼"），
+        // 真正能区分的是注册表 id → 中文名
+        String display = typeId == null
+                ? ghost.getName().getString()
+                : com.example.smfsaddon.item.GhostNames.of(typeId.getPath());
+        String head = "§f" + display + " §8(" + typeId + ")"
                 + (player == null ? "" : String.format("  距离 %.1f", distance));
         source.sendFeedback(() -> Text.literal(head), false);
         String summary = "§f模块 " + all.size()
@@ -359,8 +364,9 @@ public final class GhostModulesCommand {
         GhostModuleData nativeData = GhostModules.of(ghost).modules()
                 .get(com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule.ID);
         if (nativeData == null) {
+            // 只有 3 只鬼有装配表，所以这是常态而不是异常 —— 别标成警告
             source.sendFeedback(() -> Text.literal(
-                    "  §e⚠ 没有本源规律绑定 §8：只按本体自己的逻辑判定"), false);
+                    "  §7· 未装配源规律 §8（按本体自己的逻辑判定，交错照常生效）"), false);
         } else {
             var bound = com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule
                     .boundTypes(nativeData);

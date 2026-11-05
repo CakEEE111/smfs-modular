@@ -198,6 +198,14 @@ public final class GhostRuleCrossing {
     }
 
     /**
+     * 不参战的类型：名字里带这些词的，`shouldAttackPlayer` 多半恒为 false，
+     * 借来只是白占名额（实测抽到过融合流程鬼、商人和梦魇）。
+     */
+    private static final List<String> POOL_BLACKLIST = List.of(
+            "fusion", "nightmare", "seller", "slave"
+    );
+
+    /**
      * 候选池：能造出 {@code GhostEntity} 的类型。
      *
      * <p>先按名字粗筛再实际试造 —— 全量试造几百个实体太浪费。
@@ -216,8 +224,22 @@ public final class GhostRuleCrossing {
             if (!likely) {
                 continue;
             }
+            boolean blocked = false;
+            for (String bad : POOL_BLACKLIST) {
+                if (path.contains(bad)) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) {
+                continue;
+            }
             EntityType<?> type = Registries.ENTITY_TYPE.getOrEmpty(id).orElse(null);
             if (type == null) {
+                continue;
+            }
+            // 不能召唤的多半是流程/演出实体，拉进池子只会白借
+            if (!type.isSummonable()) {
                 continue;
             }
             try {
