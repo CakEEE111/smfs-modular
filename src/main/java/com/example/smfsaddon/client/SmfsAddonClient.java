@@ -115,7 +115,15 @@ public class SmfsAddonClient implements ClientModInitializer {
             }
 
             while (SKILL_PALETTE_KEY.wasPressed()) {
-                client.setScreen(new GhostSkillPaletteScreen());
+                // 没东西可放就别开空界面：面板按「背包携带」列鬼，
+                // 空手但背包里有融合物时仍然该能开，只有一件都没有才提示
+                if (com.example.smfsaddon.item.FusedGhostSlots.carried(client.player).isEmpty()) {
+                    client.player.sendMessage(
+                            net.minecraft.text.Text.translatable("message.smfsaddon.skill_palette.empty"),
+                            true);
+                } else {
+                    client.setScreen(new GhostSkillPaletteScreen());
+                }
             }
 
             // 是否满足条件交给服务端判断，客户端只负责把请求发出去

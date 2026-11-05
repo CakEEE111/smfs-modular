@@ -142,7 +142,7 @@ public class GhostSkillPaletteScreen extends Screen {
 
         if (this.rows.isEmpty()) {
             context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal("§7手上没有融合厉鬼的物品"),
+                    Text.literal("§7背包里没有融合厉鬼的物品"),
                     this.width / 2, 50, 0xAAAAAA);
         } else {
             int totalPages = Math.max(1, (this.rows.size() + rowsPerPage - 1) / rowsPerPage);

@@ -11,6 +11,7 @@
   "effect.smfsaddon.super_saiyan": "超级赛亚人",
   "key.smfsaddon.transform": "超级赛亚人变身",
   "key.smfsaddon.kamehameha": "龟派气功",
+  "message.smfsaddon.skill_palette.empty": "§7背包里没有融合了厉鬼的物品",
   "message.smfsaddon.kakarot.no_ghost": "§c卡卡罗特必须是你的主鬼才能施展",
   "message.smfsaddon.kakarot.slot_only": "§c这只卡卡罗特融在物品上——按 X 从技能面板放",
   "message.smfsaddon.kakarot.level_low": "§c卡卡罗特等级不足：当前 %s 级，需要 %s 级",
