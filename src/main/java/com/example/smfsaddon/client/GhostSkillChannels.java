@@ -69,6 +69,21 @@ public final class GhostSkillChannels {
 
     private static final String SUFFIX = "_skill";
 
+    /**
+     * 会从包缓冲区读参数的通道，面板不能列。
+     *
+     * <p>面板发的都是空包（绝大多数技能包不读参数）。但鬼影头的 G/N/V 三个包要读
+     * 目标实体 id、坐标、布尔量 —— 空包会让服务端 handler 读越界，
+     * 轻则日志报错，重则踢人。所以这几个只能靠本体自己的键位用。
+     *
+     * <p>判断依据是反编译：包里出现 {@code readInt} / {@code readFloat} / {@code readBoolean}。
+     */
+    private static final Set<String> NEEDS_ARGUMENTS = Set.of(
+            "ghost_shadow_head_g_skill",
+            "ghost_shadow_head_n_skill",
+            "ghost_shadow_head_v_skill"
+    );
+
     private static final Map<String, List<Entry>> BY_GHOST = new HashMap<>();
     private static Set<Identifier> scannedFrom = Set.of();
 
@@ -131,6 +146,9 @@ public final class GhostSkillChannels {
         for (Identifier channel : sendable) {
             String path = channel.getPath();
             if (!path.endsWith(SUFFIX)) {
+                continue;
+            }
+            if (NEEDS_ARGUMENTS.contains(path)) {
                 continue;
             }
             String body = path.substring(0, path.length() - SUFFIX.length());
