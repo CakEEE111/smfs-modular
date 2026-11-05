@@ -1,0 +1,7 @@
+{
+  "_comment": "踩头鬼：合入后除了本源规律，还带上它自己的低处踩踏模块。",
+  "entity": "smfs:step_ghost",
+  "modules": [
+    "smfsaddon:step_ghost"
+  ]
+}

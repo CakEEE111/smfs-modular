@@ -1,0 +1,22 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.example.smfsaddon.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "GhostEntityModuleMixin",
+    "SmfsInitializerMixin",
+    "ItemStackUseMixin",
+    "ServerPlayerInteractionMixin",
+    "PlayerDamageMixin",
+    "PlayerEventsGhostMixin"
+  ],
+  "client": [
+    "PlayerSsjHairMixin",
+    "GhostControlScreenMixin",
+    "ItemTooltipMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

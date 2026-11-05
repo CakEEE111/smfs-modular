@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "smfsaddon:block/ghost_anchor" }
+  }
+}

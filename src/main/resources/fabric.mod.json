@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "smfsaddon",
+	"version": "${version}",
+	"name": "神秘复苏 附属示例",
+	"description": "神秘复苏（smfs）附属模组开发模板：卡卡罗特厉鬼：实体、容器物品、双技能、气焰领域、掉落与成就。",
+	"authors": [
+		"your name"
+	],
+	"license": "CC BY-SA 4.0",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.example.smfsaddon.SmfsAddon"
+		],
+		"client": [
+			"com.example.smfsaddon.client.SmfsAddonClient"
+		]
+	},
+	"mixins": [
+		"smfsaddon.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.14.21",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*",
+		"geckolib": ">=4.2.4",
+		"smfs": ">=1.5.0"
+	}
+}

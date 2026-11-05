@@ -1,0 +1,31 @@
+{
+  "parent": "smfsaddon:root",
+  "display": {
+    "icon": {
+      "item": "smfsaddon:kakarot_ghost"
+    },
+    "title": {
+      "translate": "advancements.smfsaddon.obtain.title"
+    },
+    "description": {
+      "translate": "advancements.smfsaddon.obtain.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "has_container": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "smfsaddon:kakarot_ghost"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

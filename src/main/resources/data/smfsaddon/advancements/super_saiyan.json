@@ -1,0 +1,27 @@
+{
+  "parent": "smfsaddon:obtain_container",
+  "display": {
+    "icon": {
+      "item": "minecraft:blaze_powder"
+    },
+    "title": {
+      "translate": "advancements.smfsaddon.super_saiyan.title"
+    },
+    "description": {
+      "translate": "advancements.smfsaddon.super_saiyan.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "transformed": {
+      "trigger": "minecraft:effects_changed",
+      "conditions": {
+        "effects": {
+          "smfsaddon:super_saiyan": {}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "_comment": "示例：同一只鬼多套拼法。变体 0「门后必死」供移植演示（/ghostmodules graft smfs:qiaomen_ghost）。",
+  "entity": "smfs:qiaomen_ghost",
+  "variants": [
+    {
+      "id": "门后必死",
+      "weight": 3,
+      "modules": [
+        "smfsaddon:step_ghost",
+        "smfsaddon:door_bane"
+      ]
+    },
+    {
+      "id": "只敲门",
+      "weight": 4,
+      "modules": [
+        "smfsaddon:step_ghost"
+      ]
+    },
+    {
+      "id": "拼完整",
+      "weight": 1,
+      "modules": [
+        "smfsaddon:step_ghost",
+        "smfsaddon:domain_presence"
+      ]
+    }
+  ]
+}
