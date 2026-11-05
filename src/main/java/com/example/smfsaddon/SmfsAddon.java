@@ -69,9 +69,11 @@ public class SmfsAddon implements ModInitializer {
         com.example.smfsaddon.fusion.FusionOpen.registerServer();
         com.example.smfsaddon.fusion.FusionGraft.registerServer();
         com.example.smfsaddon.skill.CastSkillPacket.registerServer();
-        // 玩家退出时释放图鉴缓存
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid()));
+        // 玩家退出时释放图鉴缓存与虚拟鬼槽缓存
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid());
+            com.example.smfsaddon.item.FusedGhostSlots.forget(handler.getPlayer().getUuid());
+        });
 
         if (GhostAPI.isRegistered() && TameableItemAPI.isRegistered()) {
             registerContent();

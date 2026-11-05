@@ -11,7 +11,8 @@
     "PlayerDamageMixin",
     "PlayerEventsGhostMixin",
     "GhostDomainManagerSkillMixin",
-    "ScapegoatLevelMixin"
+    "ScapegoatLevelMixin",
+    "TameableItemAPISlotsMixin"
   ],
   "client": [
     "PlayerSsjHairMixin",

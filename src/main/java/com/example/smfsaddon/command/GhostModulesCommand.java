@@ -73,6 +73,8 @@ public final class GhostModulesCommand {
                                 .executes(context -> listAssembly(context.getSource())))
                         .then(CommandManager.literal("held")
                                 .executes(context -> inspectHeld(context.getSource())))
+                        .then(CommandManager.literal("slots")
+                                .executes(context -> listSlots(context.getSource())))
                         .then(CommandManager.literal("debug")
                                 .executes(context -> toggleDebug(context.getSource())))
                         .then(CommandManager.literal("graft")
@@ -269,6 +271,43 @@ public final class GhostModulesCommand {
             source.sendFeedback(
                     () -> Text.literal("  §e" + name + " §8(" + data.moduleId() + ")"), false);
         }
+        return 1;
+    }
+
+    /**
+     * 按本体鬼槽 API 的视角列出槽位。
+     *
+     * <p>和 {@code /ghostmodules held} 的分工：那条看的是物品内部的模块，
+     * 这条看的是<b>附属扫槽时看到的画面</b>。附属的被动没触发，
+     * 十有八九是这里看不见它。
+     */
+    private static int listSlots(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("只有玩家能查"));
+            return 0;
+        }
+        var api = com.xie.smfs.api.TameableItemAPI.getInstance();
+        var virtual = com.example.smfsaddon.item.FusedGhostSlots.bySlot(player);
+
+        source.sendFeedback(() -> Text.literal("§8=== 鬼槽（本体 API 视角）==="), false);
+        int shown = 0;
+        for (int slot = 0; slot < com.xie.smfs.common.events.PlayerEvents.GHOST_SLOT_COUNT; slot++) {
+            if (!api.isGhostSlotOccupied(player, slot)) {
+                continue;
+            }
+            shown++;
+            int index = slot;
+            String type = api.getGhostTypeInSlot(player, slot);
+            boolean projection = virtual.containsKey(slot);
+            source.sendFeedback(() -> Text.literal("  §f槽 " + index + " §7"
+                    + (type == null ? "?" : type) + "  "
+                    + (projection ? "§d融合物品投影" : "§a真实鬼槽")), false);
+        }
+        if (shown == 0) {
+            source.sendFeedback(() -> Text.literal("  §7（全空）"), false);
+        }
+        source.sendFeedback(() -> Text.literal("§8本机融合鬼：" + virtual.values()), false);
         return 1;
     }
 
