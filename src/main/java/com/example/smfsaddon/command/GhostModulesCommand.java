@@ -273,8 +273,11 @@ public final class GhostModulesCommand {
         for (GhostModuleData data : List.copyOf(host.modules().all())) {
             GhostModule module = GhostModuleRegistry.get(data.moduleId());
             String name = module == null ? data.moduleId().toString() : module.displayName();
+            // 复苏值一起打出来：变身/龟派气功这类消耗记在这里，不给看就是黑箱
             source.sendFeedback(
-                    () -> Text.literal("  §e" + name + " §8(" + data.moduleId() + ")"), false);
+                    () -> Text.literal("  §e" + name
+                            + " §8复苏 " + String.format("%.1f", data.revival())
+                            + " §8(" + data.moduleId() + ")"), false);
         }
         return 1;
     }

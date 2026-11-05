@@ -1,9 +1,10 @@
 package com.example.smfsaddon.effect;
 
+import com.example.smfsaddon.SmfsAddon;
+import com.example.smfsaddon.manager.KakarotSlots;
 import com.xie.smfs.common.events.PlayerEvents;
 import com.xie.smfs.effect.SpiritAttributes;
 import com.xie.smfs.manager.GhostDomainManager;
-import com.xie.smfs.manager.MainGhostManager;
 import com.xie.smfs.registry.ModEffects;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.AttributeContainer;
@@ -129,22 +130,42 @@ public class SuperSaiyanEffect extends StatusEffect {
         }
     }
 
-    /** 每秒烧复苏度 */
+    /**
+     * 每秒烧复苏度。
+     *
+     * <h2>烧谁</h2>
+     *
+     * <p>必须是<b>卡卡罗特自己</b>，不是"当前主鬼"。早先无条件取
+     * {@code MainGhostManager.getMainGhostSlot}，玩家把卡卡罗特融进剑、
+     * 主鬼槽里放着别的鬼时，扣的是别人的复苏度 —— 等于白嫖。
+     *
+     * <p>三种情况：卡卡罗特在鬼槽 → 烧那一格；只在物品上 → 烧物品上那条规律的
+     * 复苏值，到顶就打断变身；哪都没有 → 什么都不烧（能变身说明判定放行了）。
+     */
     private void burnRevival(ServerPlayerEntity player) {
-        int slot = MainGhostManager.getMainGhostSlot(player);
-        int degree = PlayerEvents.getGhostSlotRevivalDegree(player, slot);
-        int required = PlayerEvents.getGhostSlotRequiredRevivalDegree(player, slot);
-        if (required <= 0) {
-            required = 1000;
+        int slot = KakarotSlots.findSlot(player);
+        if (slot >= 0) {
+            int degree = PlayerEvents.getGhostSlotRevivalDegree(player, slot);
+            int required = PlayerEvents.getGhostSlotRequiredRevivalDegree(player, slot);
+            if (required <= 0) {
+                required = 1000;
+            }
+
+            int next = Math.min(degree + REVIVAL_COST_PER_SECOND, required - 1);
+            if (next > degree) {
+                PlayerEvents.updateGhostSlotValue(player, slot, "revivalDegree", next);
+            }
+
+            if (next >= required - 1) {
+                player.sendMessage(Text.translatable("message.smfsaddon.kakarot.revival_edge"), true);
+            }
+            return;
         }
 
-        int next = Math.min(degree + REVIVAL_COST_PER_SECOND, required - 1);
-        if (next > degree) {
-            PlayerEvents.updateGhostSlotValue(player, slot, "revivalDegree", next);
-        }
-
-        if (next >= required - 1) {
-            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.revival_edge"), true);
+        // 只有融合物品：烧物品上那条规律，涨满就压不住，变身被打断
+        if (KakarotSlots.burnItemRevival(player, REVIVAL_COST_PER_SECOND)) {
+            player.removeStatusEffect(SmfsAddon.SUPER_SAIYAN);
+            player.sendMessage(Text.translatable("message.smfsaddon.kakarot.item_revival_edge"), true);
         }
     }
 

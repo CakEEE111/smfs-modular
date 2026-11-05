@@ -14,6 +14,7 @@
   "message.smfsaddon.kakarot.no_ghost": "§c卡卡罗特必须是你的主鬼才能施展",
   "message.smfsaddon.kakarot.level_low": "§c卡卡罗特等级不足：当前 %s 级，需要 %s 级",
   "message.smfsaddon.kakarot.revival_edge": "§4复苏度已到极限，再撑下去就回不了头了",
+  "message.smfsaddon.kakarot.item_revival_edge": "§4剑上的卡卡罗特复苏到顶，金光断了——它得重新缓过来",
   "message.smfsaddon.kakarot.transform_on": "§6气从皮肤里烧起来了。你听见自己的心跳在加速——那是复苏的声音。",
   "message.smfsaddon.kakarot.transform_off": "§7金光散去。",
   "advancements.smfsaddon.root.title": "神秘复苏：卡卡罗特",

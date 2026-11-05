@@ -134,8 +134,8 @@ public final class KakarotKamehamehaPacket {
 
         if (target != null) {
             // 伤害随鬼等级成长：1 级 1.00 → 5 级 2.00 → 10 级 3.25
-            int slot = MainGhostManager.getMainGhostSlot(player);
-            int level = Math.max(1, PlayerEvents.getGhostSlotLevel(player, slot));
+            // 等级取卡卡罗特自己的：槽里有就用槽里的，只有融合物品时按 1 级
+            int level = com.example.smfsaddon.manager.KakarotSlots.level(player);
             float levelMultiplier = 1.0f + (level - 1) * LEVEL_DAMAGE_STEP;
 
             float spiritDamage = PlayerEvents.getSpiritAttribute(player, SpiritAttributes.SPIRIT_DAMAGE);
