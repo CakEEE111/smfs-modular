@@ -87,7 +87,30 @@ public final class GhostSkillChannels {
     private static final Map<String, List<Entry>> BY_GHOST = new HashMap<>();
     private static Set<Identifier> scannedFrom = Set.of();
 
+    /**
+     * 本模组自己注册的技能通道。
+     *
+     * <p>本体和别的附属把技能挂在 {@code _skill} 命名的通道上，我们的卡卡罗特
+     * 用的是 {@code smfsaddon:kakarot_transform} / {@code kakarot_kamehameha}
+     * （历史命名，键位 R / C 直接发这两个包），从名字上看不像技能，扫不出来。
+     *
+     * <p>与其为它改名（会动到协议），不如让它自己登记 —— 谁注册谁负责，
+     * 以后我们再加技能也走这条，不用改解析规则。
+     */
+    private static final Map<String, List<Entry>> EXTRA = new HashMap<>();
+
     private GhostSkillChannels() {
+    }
+
+    /**
+     * 登记一条不走 {@code _skill} 命名的技能通道。
+     */
+    public static void registerExtra(String ghostType, String key, Identifier channel, String label) {
+        if (ghostType == null || channel == null) {
+            return;
+        }
+        EXTRA.computeIfAbsent(ghostType, ignored -> new ArrayList<>())
+                .add(new Entry(key == null ? "" : key, label, channel));
     }
 
     /**
@@ -98,24 +121,29 @@ public final class GhostSkillChannels {
     }
 
     /**
-     * 某只鬼的技能列表。还没进游戏（通道表为空）时返回空。
+     * 某只鬼的技能列表：扫描结果 ∪ 别名 ∪ 自己登记的。
      */
     public static List<Entry> entries(String ghostType) {
         ensureScanned();
         if (ghostType == null) {
             return List.of();
         }
-        List<Entry> direct = BY_GHOST.getOrDefault(ghostType, List.of());
+        // 按通道去重：别名和自登记都可能与扫描结果重合
+        Map<Identifier, Entry> merged = new java.util.LinkedHashMap<>();
+        BY_GHOST.getOrDefault(ghostType, List.of())
+                .forEach(entry -> merged.put(entry.channel(), entry));
         String alias = CHANNEL_ALIAS.get(ghostType);
-        if (alias == null) {
-            return direct;
+        if (alias != null) {
+            BY_GHOST.getOrDefault(alias, List.of())
+                    .forEach(entry -> merged.putIfAbsent(entry.channel(), entry));
         }
-        // 有别名时合并去重（同一按键只留一个）
-        Map<String, Entry> merged = new java.util.LinkedHashMap<>();
-        direct.forEach(entry -> merged.put(entry.key(), entry));
-        BY_GHOST.getOrDefault(alias, List.of()).forEach(entry -> merged.putIfAbsent(entry.key(), entry));
+        EXTRA.getOrDefault(ghostType, List.of())
+                .forEach(entry -> merged.put(entry.channel(), entry));
+
         List<Entry> result = new ArrayList<>(merged.values());
-        result.sort(Comparator.comparing(Entry::key));
+        result.sort(Comparator
+                .comparingInt((Entry entry) -> order(entry.key()))
+                .thenComparing(Entry::label));
         return result;
     }
 

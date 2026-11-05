@@ -41,6 +41,21 @@ public class SmfsAddonClient implements ClientModInitializer {
         // 进服后预热技能通道表：面板打开前也能在日志里看到识别结果
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
                 (handler, sender, client) -> client.execute(GhostSkillChannels::warmUp));
+        registerOwnSkillChannels();
+    }
+
+    /**
+     * 把我们自己那两个不叫 {@code _skill} 的通道登记进技能面板。
+     *
+     * <p>卡卡罗特的变身 / 龟派气功走的是 {@code smfsaddon:kakarot_transform} 和
+     * {@code kakarot_kamehameha}（键位 R / C 直接发这两个包），从名字上看不出是技能，
+     * 按通道后缀扫不到。与其改协议名，不如自己登记。
+     */
+    private void registerOwnSkillChannels() {
+        GhostSkillChannels.registerExtra("kakarot_ghost", "R",
+                com.example.smfsaddon.network.KakarotTransformPacket.ID, "变身（R 键）");
+        GhostSkillChannels.registerExtra("kakarot_ghost", "C",
+                com.example.smfsaddon.network.KakarotKamehamehaPacket.ID, "龟派气功（C 键）");
     }
 
     /**
