@@ -162,9 +162,12 @@ public class GhostFusionScreenHandler extends ScreenHandler {
         this.suppression = FusionFormula.suppression(player);
 
         Identifier ghostType = resolveGhostEntityType();
+        // 必须用 graftPlanFor 而不是 modulesOfGhost：
+        // 后者只含装配表模块，没有装配表的鬼会算成「需求 0」，
+        // 而实际合入还会挂本源规律并收费 —— 显示与实际两套口径
         List<Identifier> modules = ghostType == null
                 ? List.of()
-                : GhostGrafting.modulesOfGhost(ghostType);
+                : GhostGrafting.graftPlanFor(ghostType);
 
         int existing = com.example.smfsaddon.item.ItemGhostHost
                 .boundGhostTypes(targetSlot.getStack(0)).size();

@@ -59,6 +59,19 @@ public final class FusionFormula {
      */
     public static final double MARGINAL_GROWTH = 0.75D;
 
+    /**
+     * 每次合入的「入门费」，与要融几个模块无关。
+     *
+     * <p>没有这一项时，第一只鬼只要 {@code 30 × 30 = 900}，
+     * 而玩家压制值动辄上万 —— 表现就是「前几只随便塞，等于没有要求」。
+     * 模块成本只能区分「这只鬼危不危险」，区分不了「有没有做这件事的代价」。
+     *
+     * <p>150 这个量级是配着 {@link #COST_SCALE} 选的：
+     * 第一只约 {@code (150+30)×30 = 5400}，之后按 75% 复利上去。
+     * 要整体加减负，调这一个数就够。
+     */
+    public static final double ENTRY_COST = 150.0D;
+
     private FusionFormula() {
     }
 
@@ -82,7 +95,12 @@ public final class FusionFormula {
      */
     public static double requiredFor(java.util.List<net.minecraft.util.Identifier> moduleIds,
                                      int existingGhosts) {
-        double base = 0.0D;
+        // 没有模块就没有可融的东西（界面上右槽为空时会走到这里）
+        if (moduleIds == null || moduleIds.isEmpty()) {
+            return 0.0D;
+        }
+        // 入门费：跟模块无关，但每次合入都要付
+        double base = ENTRY_COST;
         for (net.minecraft.util.Identifier moduleId : moduleIds) {
             var module = com.example.smfsaddon.ghost.module.GhostModuleRegistry.get(moduleId);
             base += module == null ? DEFAULT_COST : module.suppressionCost();
