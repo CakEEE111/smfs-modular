@@ -40,7 +40,9 @@ public class SsjHairFeatureRenderer
             return;
         }
 
+        // 把玩家模型的 head 部件交给渲染器：头发绕着它转，
+        // 这样转头/低头时头发跟得上，而不是贴在原位
         SsjHairGeoRenderer.get().renderHair(matrices, vertexConsumers,
-                LightmapTextureManager.MAX_LIGHT_COORDINATE, headYaw, headPitch);
+                LightmapTextureManager.MAX_LIGHT_COORDINATE, this.getContextModel().head);
     }
 }

@@ -6,9 +6,9 @@ import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.model.GeoModel;
@@ -63,27 +63,14 @@ public final class SsjHairGeoRenderer implements GeoRenderer<GhostEntity> {
     private static final float Z_OFFSET = 0.0f;
 
     /**
-     * 是否翻转前后轴。true 时等价于 matrices.scale(-1,-1,-1)，
-     * 会让模型前后朝向反一次（刘海从脸前挪到脑后）。
+     * 是否翻转前后轴。
      *
-     * <p>实测命中的情况：龙珠模组这套几何的「正面」在 geo 空间是 +z，
-     * 而 MC 模型空间正面是 -z（GeckoLib 烘焙时只对 x 取负，不动 z），
-     * 所以必须再翻一次 z，刘海才会在脸前。
+     * <p>龙珠模组这套几何的「正面」与 MC 模型空间的正面对不上，需要翻一次 z，
+     * 刘海才会在脸前。实测这一版是反的（刘海跑到脑后），所以关掉。
+     *
+     * <p>若以后换贴图/模型发现又反了，只改这一个布尔。
      */
-    private static final boolean Z_FLIP = true;
-
-    /**
-     * 头部俯仰 / 左右转的符号。
-     *
-     * <p>为什么写死符号而不是直接用 headYaw/headPitch：z 翻转（diag(1,1,-1)）是反射，
-     * 反射会把**绕 x、绕 y 的旋转方向一起反掉**（绕 z 不受影响）。
-     * 也就是说打开 Z_FLIP 之后，同样的角度数会让头发的转头方向反过来。
-     * 这两个常量就是对消这一点的：Z_FLIP 生效时取 (−1, +1)，关闭时取 (+1, −1)。
-     *
-     * <p>若发现「玩家向左看、头发向右转」，只改这两个数即可。
-     */
-    private static final float PITCH_SIGN = -1.0f;
-    private static final float YAW_SIGN = 1.0f;
+    private static final boolean Z_FLIP = false;
 
     private final GeoModel<GhostEntity> model = new GeoModel<>() {
         @Override
@@ -152,9 +139,23 @@ public final class SsjHairGeoRenderer implements GeoRenderer<GhostEntity> {
         // 不派发任何事件
     }
 
-    /** 头部朝向（角度制）跟随玩家头部 */
+    /**
+     * 渲染头发。
+     *
+     * <h2>为什么要吃 {@link ModelPart}</h2>
+     *
+     * <p>之前是手动给 geo 里的 {@code head} 骨骼设 rotX/rotY。那条路有两个问题：
+     * 该骨骼的 pivot 经过坐标变换后不一定落在颈部，转起来是「绕一个错的点转」，
+     * 表现为头发乱飘、不贴头；而且 z 轴反射会把旋转方向也一起反掉，
+     * 得再用两个符号常数去对消，越调越乱。
+     *
+     * <p>现在直接把玩家模型的 {@code head} 变换套在外面：那是 MC 自己的
+     * pivot + rotationX/Y/Z，与头的转动完全一致，不存在符号问题。
+     *
+     * @param head 玩家模型的头部部件，可为 {@code null}（不跟随）
+     */
     public void renderHair(MatrixStack matrices, VertexConsumerProvider buffers, int light,
-                           float headYaw, float headPitch) {
+                           ModelPart head) {
         BakedGeoModel baked;
         try {
             baked = model.getBakedModel(MODEL);
@@ -168,12 +169,20 @@ public final class SsjHairGeoRenderer implements GeoRenderer<GhostEntity> {
         RenderLayer layer = RenderLayer.getEntityCutoutNoCull(TEXTURE);
         VertexConsumer buffer = buffers.getBuffer(layer);
 
-        baked.getBone("head").ifPresent(head -> {
-            head.setRotX(headPitch * PITCH_SIGN * MathHelper.RADIANS_PER_DEGREE);
-            head.setRotY(headYaw * YAW_SIGN * MathHelper.RADIANS_PER_DEGREE);
+        // geo 里那根 head 骨骼保持零旋转：朝向我们交给 ModelPart 了，
+        // 这里再转一次就是双份
+        baked.getBone("head").ifPresent(bone -> {
+            bone.setRotX(0.0f);
+            bone.setRotY(0.0f);
+            bone.setRotZ(0.0f);
         });
 
         matrices.push();
+        // 先套头部变换（绕颈部转），再进 Bedrock → MC 的坐标映射。
+        // 顺序反了的话，平移量会被头部旋转一起带走，头发会绕着身体画圈。
+        if (head != null) {
+            head.rotate(matrices);
+        }
         // 先按 Y_OFFSET 平移，再翻转 y 轴（Bedrock 向上 / MC 模型空间向下）。
         // 顺序必须是"先平移后翻转"：写成 scale 在前的话平移量会被一起取反。
         matrices.translate(0.0f, Y_OFFSET, Z_OFFSET);
