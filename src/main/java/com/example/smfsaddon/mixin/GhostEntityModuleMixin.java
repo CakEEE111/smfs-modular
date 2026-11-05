@@ -143,6 +143,9 @@ public abstract class GhostEntityModuleMixin implements LingyiHost, GhostEntityH
         if (!smfsaddon$assemblyApplied) {
             smfsaddon$assemblyApplied = true;
             smfsaddon$applyAssembly(self);
+            // 交错在装配之后：先给它自己的模块，再借别人的规律。
+            // 放在这里而不是 applyAssembly 里面，是因为没有装配表的鬼同样要交错。
+            com.example.smfsaddon.crossing.GhostRuleCrossing.seed((LingyiHost) (Object) this, self);
         }
 
         GhostModuleDispatcher.tick((LingyiHost) (Object) this);

@@ -137,6 +137,15 @@ public final class GhostModulesCommand {
                     + "  复苏 " + String.format("%.1f", data.revival())
                     + "  强度 " + String.format("%.2f", data.intensity())), false);
         }
+
+        // 交错是隐藏机制（玩家只能从行为上感知），这里必须能看到，否则没法排查
+        GhostModuleData crossing = GhostModules.of(ghost).modules()
+                .get(com.example.smfsaddon.ghost.module.impl.CrossingModule.ID);
+        if (crossing != null) {
+            var types = com.example.smfsaddon.ghost.module.impl.CrossingModule.types(crossing);
+            source.sendFeedback(() -> Text.literal("  §d交错规律 §8(" + types.size() + " 条)："
+                    + types), false);
+        }
         return 1;
     }
 

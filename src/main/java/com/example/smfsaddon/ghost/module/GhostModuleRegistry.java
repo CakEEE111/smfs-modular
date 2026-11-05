@@ -71,6 +71,8 @@ public final class GhostModuleRegistry {
         register(new com.example.smfsaddon.ghost.module.impl.DoorBaneModule());
         register(new com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule());
         register(new com.example.smfsaddon.ghost.module.impl.ScapegoatModule());
+        // 灵异交错：让鬼借用别人的杀人规律（按难度决定条数）
+        register(new com.example.smfsaddon.ghost.module.impl.CrossingModule());
         // 协同也是模块，注册进同一张表
         GhostComboRegistry.registerBuiltins();
     }
