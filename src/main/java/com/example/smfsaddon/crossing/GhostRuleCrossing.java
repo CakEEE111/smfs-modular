@@ -189,6 +189,15 @@ public final class GhostRuleCrossing {
     }
 
     /**
+     * 造不出影子的类型（判定必然为 false，等于白借）。
+     *
+     * <p>质检命令用它来指出"这条交错是废的"，否则玩家只会觉得"交错没工作"。
+     */
+    public static Set<Identifier> unavailableTypes() {
+        return Set.copyOf(UNAVAILABLE);
+    }
+
+    /**
      * 候选池：能造出 {@code GhostEntity} 的类型。
      *
      * <p>先按名字粗筛再实际试造 —— 全量试造几百个实体太浪费。

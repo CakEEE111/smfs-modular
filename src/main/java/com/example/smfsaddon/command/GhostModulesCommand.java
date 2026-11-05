@@ -75,6 +75,8 @@ public final class GhostModulesCommand {
                                 .executes(context -> inspectHeld(context.getSource())))
                         .then(CommandManager.literal("slots")
                                 .executes(context -> listSlots(context.getSource())))
+                        .then(CommandManager.literal("check")
+                                .executes(context -> qualityCheck(context.getSource())))
                         .then(CommandManager.literal("debug")
                                 .executes(context -> toggleDebug(context.getSource())))
                         .then(CommandManager.literal("graft")
@@ -287,6 +289,112 @@ public final class GhostModulesCommand {
                     () -> Text.literal("  §e" + name
                             + " §8复苏 " + String.format("%.1f", data.revival())
                             + " §8(" + data.moduleId() + ")"), false);
+        }
+        return 1;
+    }
+
+    /**
+     * 质量检测：这只鬼身上到底有几条规则、哪几条是废的。
+     *
+     * <p>为什么需要它：一只鬼的"强度"由几处叠加而成 —— 它自己的本体逻辑、
+     * 装配表给的机制模块、以及交错借来的规律。任何一处没生效，
+     * 从外面看都只是"这只鬼有点弱"，分不出是哪层出了问题。
+     */
+    private static int qualityCheck(ServerCommandSource source) {
+        GhostEntity ghost = findNearest(source);
+        if (ghost == null) {
+            source.sendError(Text.literal("8 格内没有找到鬼"));
+            return 0;
+        }
+        ServerPlayerEntity player = source.getPlayer();
+        Identifier typeId = net.minecraft.registry.Registries.ENTITY_TYPE.getId(ghost.getType());
+
+        List<GhostModuleData> all = List.copyOf(GhostModules.of(ghost).modules().all());
+
+        int ruleTotal = 0;
+        int disabled = 0;
+        java.util.Map<Identifier, Integer> groups = new java.util.LinkedHashMap<>();
+        java.util.List<String> lines = new java.util.ArrayList<>();
+
+        for (GhostModuleData data : all) {
+            GhostModule module = GhostModuleRegistry.get(data.moduleId());
+            if (module == null) {
+                lines.add("  §c未知模块 " + data.moduleId() + "（注册表里没有，能力已失效）");
+                continue;
+            }
+            int enabled = 0;
+            for (GhostRule rule : module.rules()) {
+                ruleTotal++;
+                if (!GhostRuleTuning.isEnabled(rule.id())) {
+                    disabled++;
+                    continue;
+                }
+                enabled++;
+                Identifier group = rule.exclusionGroup();
+                if (group != null) {
+                    groups.merge(group, 1, Integer::sum);
+                }
+            }
+            lines.add("  §7· §e" + module.displayName() + " §8→ " + enabled + " 条启用"
+                    + (enabled < module.rules().size()
+                    ? "（停用 " + (module.rules().size() - enabled) + "）" : ""));
+        }
+
+        source.sendFeedback(() -> Text.literal("§8=== 厉鬼质量检测 ==="), false);
+        double distance = player == null ? 0.0D : Math.sqrt(player.squaredDistanceTo(ghost));
+        String head = "§f" + ghost.getName().getString() + " §8(" + typeId + ")"
+                + (player == null ? "" : String.format("  距离 %.1f", distance));
+        source.sendFeedback(() -> Text.literal(head), false);
+        String summary = "§f模块 " + all.size()
+                + " §8/ §f规则 " + ruleTotal
+                + " §8（启用 " + (ruleTotal - disabled) + "，停用 " + disabled + "）";
+        source.sendFeedback(() -> Text.literal(summary), false);
+        for (String line : lines) {
+            source.sendFeedback(() -> Text.literal(line), false);
+        }
+
+        // ===== 诊断 =====
+        source.sendFeedback(() -> Text.literal("§8— 诊断 —"), false);
+
+        GhostModuleData nativeData = GhostModules.of(ghost).modules()
+                .get(com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule.ID);
+        if (nativeData == null) {
+            source.sendFeedback(() -> Text.literal(
+                    "  §e⚠ 没有本源规律绑定 §8：只按本体自己的逻辑判定"), false);
+        } else {
+            var bound = com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule
+                    .boundTypes(nativeData);
+            source.sendFeedback(() -> Text.literal(
+                    "  §a✓ 本源规律绑定 " + bound.size() + " 只 §8" + bound), false);
+        }
+
+        GhostModuleData crossingData = GhostModules.of(ghost).modules()
+                .get(com.example.smfsaddon.ghost.module.impl.CrossingModule.ID);
+        if (crossingData == null) {
+            source.sendFeedback(() -> Text.literal(
+                    "  §7· 无交错（和平难度，或这只鬼在交错功能前就已生成）"), false);
+        } else {
+            var types = com.example.smfsaddon.ghost.module.impl.CrossingModule.types(crossingData);
+            var dead = com.example.smfsaddon.crossing.GhostRuleCrossing.unavailableTypes();
+            long deadCount = types.stream().filter(dead::contains).count();
+            source.sendFeedback(() -> Text.literal("  §a✓ 交错 " + types.size() + " 条 §8" + types), false);
+            if (deadCount > 0) {
+                source.sendFeedback(() -> Text.literal(
+                        "  §e⚠ 其中 " + deadCount + " 条造不出影子 §8（判定恒为 false，等于白借）"), false);
+            }
+        }
+
+        long conflict = groups.values().stream().filter(count -> count > 1).count();
+        if (conflict > 0) {
+            source.sendFeedback(() -> Text.literal(
+                    "  §e⚠ 有 " + conflict + " 组互斥规则同时启用 §8（高优先级会压过低优先级）"), false);
+        }
+        if (ruleTotal == 0) {
+            source.sendFeedback(() -> Text.literal(
+                    "  §e⚠ 一条规则都没有 §8：这只鬼完全按本体硬编码逻辑行动"), false);
+        }
+        if (ruleTotal > 0 && disabled == 0 && conflict == 0 && nativeData != null) {
+            source.sendFeedback(() -> Text.literal("  §a✓ 未发现异常"), false);
         }
         return 1;
     }
