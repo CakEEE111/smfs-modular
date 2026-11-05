@@ -1,17 +1,11 @@
 package com.example.smfsaddon.client;
 
-import com.example.smfsaddon.item.ItemGhostHost;
-import com.example.smfsaddon.skill.CastSkillPacket;
-import com.example.smfsaddon.skill.GhostSkillTable;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import com.example.smfsaddon.item.GhostNames;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -19,6 +13,12 @@ import java.util.List;
 
 /**
  * 灵异技能面板：列出手上融合的鬼所带的技能，点一下就放。
+ *
+ * <h2>技能从哪来</h2>
+ *
+ * <p>见 {@link GhostSkillChannels}：扫服务端声明的 {@code _skill} 通道，不扫方法名。
+ * 本体自己命名不统一（鬼血/鬼湖的逻辑写在包里、静悄悄的 handler 名字完全不符合约定、
+ * 完整鬼影共用鬼影头的包），只有通道才是全集。
  *
  * <h2>为什么必须分页</h2>
  *
@@ -36,7 +36,7 @@ public class GhostSkillPaletteScreen extends Screen {
      *
      * <p>技能为 {@code null} 表示这只鬼没有主动技能，仍然占一行。
      */
-    private record Row(String ghostType, GhostSkillTable.Entry entry) {
+    private record Row(String ghostType, GhostSkillChannels.Entry entry) {
     }
 
     private final List<Row> rows;
@@ -56,16 +56,14 @@ public class GhostSkillPaletteScreen extends Screen {
         }
 
         LinkedHashSet<String> types = new LinkedHashSet<>();
-        for (Hand hand : Hand.values()) {
-            ItemStack stack = client.player.getStackInHand(hand);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            types.addAll(ItemGhostHost.boundGhostTypes(stack));
+        // 用「背包携带」而不是「手持」：技能资格本来按携带判定，
+        // 面板却只列手持的话，会出现「能放但看不见」的矛盾
+        for (var bound : com.example.smfsaddon.item.FusedGhostSlots.carried(client.player)) {
+            types.add(bound.ghostType());
         }
 
         for (String ghostType : types) {
-            var entries = GhostSkillTable.entries(ghostType);
+            var entries = GhostSkillChannels.entries(ghostType);
             if (entries.isEmpty()) {
                 // 没有主动技能的鬼也要占一行，否则玩家会以为没合上
                 result.add(new Row(ghostType, null));
@@ -95,18 +93,18 @@ public class GhostSkillPaletteScreen extends Screen {
             Row row = this.rows.get(i);
             if (row.entry() == null) {
                 ButtonWidget none = this.addDrawableChild(ButtonWidget.builder(
-                                Text.literal("§8" + row.ghostType() + "（无主动技能）"),
+                                Text.literal("§8" + GhostNames.of(row.ghostType()) + "（无主动技能）"),
                                 button -> { })
                         .dimensions(this.width / 2 - 100, y, 200, 20)
                         .build());
                 none.active = false;
             } else {
-                String ghostType = row.ghostType();
-                String key = row.entry().key();
+                GhostSkillChannels.Entry entry = row.entry();
                 this.addDrawableChild(ButtonWidget.builder(
-                                Text.literal("§f" + row.entry().label()),
+                                Text.literal("§f" + entry.label()),
                                 button -> {
-                                    cast(ghostType, key);
+                                    // 直接发本体自己的技能包：冷却、资格、复苏平衡都在包里
+                                    GhostSkillChannels.dispatch(entry.channel());
                                     this.close();
                                 })
                         .dimensions(this.width / 2 - 100, y, 200, 20)
@@ -131,22 +129,6 @@ public class GhostSkillPaletteScreen extends Screen {
             next.active = this.page < totalPages - 1;
             this.addDrawableChild(next);
         }
-    }
-
-    /**
-     * 释放一个技能。
-     *
-     * <p>优先借本体自己的技能包：冷却、资格、复苏平衡都在那个包里，
-     * 走这条路等于「玩家按了原键」，行为天然一致，也不怕本体加技能。
-     * 只有本体没为这个技能开通道时，才回退到我们自己的反射通道
-     * （那条路服务端会补一次通用冷却）。
-     */
-    private void cast(String ghostType, String key) {
-        if (SkillChannels.dispatch(ghostType, key)) {
-            return;
-        }
-        ClientPlayNetworking.send(CastSkillPacket.ID,
-                PacketByteBufs.create().writeString(ghostType).writeString(key));
     }
 
     @Override

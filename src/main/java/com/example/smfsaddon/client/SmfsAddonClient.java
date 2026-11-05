@@ -38,6 +38,9 @@ public class SmfsAddonClient implements ClientModInitializer {
         registerRenderer();
         registerKeyBindings();
         registerFusionScreen();
+        // 进服后预热技能通道表：面板打开前也能在日志里看到识别结果
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register(
+                (handler, sender, client) -> client.execute(GhostSkillChannels::warmUp));
     }
 
     /**

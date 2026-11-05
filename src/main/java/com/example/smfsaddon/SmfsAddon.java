@@ -68,7 +68,6 @@ public class SmfsAddon implements ModInitializer {
         com.example.smfsaddon.fusion.FusionScreens.register();
         com.example.smfsaddon.fusion.FusionOpen.registerServer();
         com.example.smfsaddon.fusion.FusionGraft.registerServer();
-        com.example.smfsaddon.skill.CastSkillPacket.registerServer();
         // 玩家退出时释放图鉴缓存与虚拟鬼槽缓存
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid());
@@ -117,8 +116,8 @@ public class SmfsAddon implements ModInitializer {
         registerOrphanRestore();
         KakarotMeleeHandler.register();
 
-        // 触发一次技能表扫描，把数量打进日志，方便确认本体那边有没有改命名
-        com.example.smfsaddon.skill.GhostSkillTable.knownTypes();
+        // 技能表改为按通道推导（client/GhostSkillChannels），
+        // 这里是服务端，通道表要等客户端连上来才有，故不在此处扫描
 
         LOGGER.info("[smfsaddon] 卡卡罗特鬼加载完成");
     }
