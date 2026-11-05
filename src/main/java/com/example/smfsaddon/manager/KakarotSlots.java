@@ -34,7 +34,44 @@ public final class KakarotSlots {
 
     public static final String GHOST_TYPE = "kakarot_ghost";
 
+    /**
+     * 一次释放的复苏代价（净 +12，与词条上写的一致）。
+     */
+    public static final int RELEASE_COST = 12;
+
     private KakarotSlots() {
+    }
+
+    /**
+     * 结算一次技能释放的代价 —— <b>只记在卡卡罗特自己身上</b>。
+     *
+     * <h2>为什么不用 {@code PlayerEvents.balanceRevivalDegree}</h2>
+     *
+     * <p>那个方法的语义是「<b>主鬼</b> +20、其他槽 −8」。玩家只把卡卡罗特融在武器上时，
+     * 主鬼槽里是别的鬼 —— 结果是放一次变身，别人的复苏度涨了 20。
+     * 本体的技能以主鬼为代价是合理的（技能本来就挂在主鬼身上），
+     * 但我们的技能挂在物品上，代价就必须跟着物品走。
+     *
+     * <p>所以这里绕开 balance，按「卡卡罗特在哪」分别记：
+     * 在槽里就加那一格，只有物品就加物品上那条规律。
+     */
+    public static void chargeRelease(ServerPlayerEntity player, int amount) {
+        int slot = findSlot(player);
+        if (slot >= 0) {
+            int degree = PlayerEvents.getGhostSlotRevivalDegree(player, slot);
+            int required = PlayerEvents.getGhostSlotRequiredRevivalDegree(player, slot);
+            if (required <= 0) {
+                required = 1000;
+            }
+            int next = Math.min(degree + amount, required - 1);
+            if (next > degree) {
+                PlayerEvents.updateGhostSlotValue(player, slot, "revivalDegree", next);
+            }
+            return;
+        }
+        // 只有物品：涨满会清零并打断变身由每 tick 的 burn 负责，
+        // 这里的释放代价不追求把形态掐断，忽略返回值
+        burnItemRevival(player, amount);
     }
 
     /**

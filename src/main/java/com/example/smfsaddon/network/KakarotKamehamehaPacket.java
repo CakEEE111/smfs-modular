@@ -98,8 +98,10 @@ public final class KakarotKamehamehaPacket {
         // 3) 执行
         fire(player);
 
-        // 4) 复苏度结算 —— 与本体所有技能一致，技能的真正成本在这里
-        PlayerEvents.balanceRevivalDegree(player);
+        // 4) 复苏度结算 —— 只记在卡卡罗特自己身上（槽里或物品上）。
+        //    不能用 balanceRevivalDegree：那会给主鬼槽里的别的鬼加复苏度
+        com.example.smfsaddon.manager.KakarotSlots.chargeRelease(
+                player, com.example.smfsaddon.manager.KakarotSlots.RELEASE_COST);
     }
 
     private static void fire(ServerPlayerEntity player) {

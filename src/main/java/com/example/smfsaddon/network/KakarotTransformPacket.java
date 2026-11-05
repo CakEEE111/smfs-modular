@@ -86,7 +86,8 @@ public final class KakarotTransformPacket {
                 true,    // 显示粒子
                 true));  // 显示图标
 
-        // 与本体技能一致：释放即结算一次复苏度（净 +12）
-        PlayerEvents.balanceRevivalDegree(player);
+        // 释放代价只记在卡卡罗特自己身上（槽里或物品上），
+        // 不能用 balanceRevivalDegree —— 那会给主鬼槽里的**别的鬼**加复苏度
+        KakarotSlots.chargeRelease(player, KakarotSlots.RELEASE_COST);
     }
 }
