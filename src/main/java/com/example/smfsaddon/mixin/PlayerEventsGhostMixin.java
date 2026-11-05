@@ -27,7 +27,9 @@ public abstract class PlayerEventsGhostMixin {
         if (Boolean.TRUE.equals(callbackInfo.getReturnValue())) {
             return;
         }
-        if (FusedGhostIndex.holds(player, ghostType)) {
+        // 用「背包携带」而不是「手持」：本体问的是拥有关系，
+        // 换手不该让被动失效（鬼槽里的鬼也不会因为切物品就消失）
+        if (FusedGhostIndex.carried(player, ghostType)) {
             callbackInfo.setReturnValue(true);
         }
     }

@@ -35,7 +35,7 @@ public abstract class ScapegoatLevelMixin {
     @Inject(method = "getScapegoatGhostLevel", at = @At("RETURN"), cancellable = true, remap = false)
     private static void smfsaddon$maxOwnedRevivalLevel(PlayerEntity player,
                                                        CallbackInfoReturnable<Integer> callbackInfo) {
-        if (!FusedGhostIndex.holds(player, "scapegoat_ghost")) {
+        if (!FusedGhostIndex.carried(player, "scapegoat_ghost")) {
             return;
         }
         callbackInfo.setReturnValue(maxOwnedLevel(player));

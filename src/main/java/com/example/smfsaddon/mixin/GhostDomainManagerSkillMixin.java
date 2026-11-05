@@ -35,7 +35,7 @@ public abstract class GhostDomainManagerSkillMixin {
     private static void smfsaddon$fusedHolderPassesGate(PlayerEntity player, String ghostType,
                                                         Item ghostItem, int requiredLevel,
                                                         CallbackInfoReturnable<GhostDomainManager.SkillCheckResult> callbackInfo) {
-        if (FusedGhostIndex.holds(player, ghostType)) {
+        if (FusedGhostIndex.carried(player, ghostType)) {
             callbackInfo.setReturnValue(GhostDomainManager.SkillCheckResult.SUCCESS);
         }
     }
