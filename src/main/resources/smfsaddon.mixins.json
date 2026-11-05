@@ -10,7 +10,8 @@
     "ServerPlayerInteractionMixin",
     "PlayerDamageMixin",
     "PlayerEventsGhostMixin",
-    "GhostDomainManagerSkillMixin"
+    "GhostDomainManagerSkillMixin",
+    "ScapegoatLevelMixin"
   ],
   "client": [
     "PlayerSsjHairMixin",
