@@ -46,15 +46,16 @@ import java.util.Set;
 public final class GhostRuleCrossing {
 
     /**
-     * 难度 → 交错条数。
+     * 难度 → 交错条数：随难度递增。
      *
-     * <p>按设计给的数：和平 0 / 简单 3 / 普通 2 / 困难 4。
-     * （简单比普通多，若这是笔误，对调 EASY 与 NORMAL 两个数即可。）
+     * <p>和平 0（不交错）/ 简单 2 / 普通 3 / 困难 4。
+     *
+     * <p>要加码就整体 +1，要改单档就改这一个数 —— 这是唯一需要动的地方。
      */
     private static final Map<net.minecraft.world.Difficulty, Integer> COUNT = Map.of(
             net.minecraft.world.Difficulty.PEACEFUL, 0,
-            net.minecraft.world.Difficulty.EASY, 3,
-            net.minecraft.world.Difficulty.NORMAL, 2,
+            net.minecraft.world.Difficulty.EASY, 2,
+            net.minecraft.world.Difficulty.NORMAL, 3,
             net.minecraft.world.Difficulty.HARD, 4
     );
 
