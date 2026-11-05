@@ -45,6 +45,27 @@ public class SmfsAddonClient implements ClientModInitializer {
     }
 
     /**
+     * 找出「这次按 X 该看哪件物品」：主手优先，其次副手。
+     *
+     * <p>只认手里那件 —— 面板是"这件武器有什么技能"，不是"我有什么技能"。
+     */
+    private static net.minecraft.item.ItemStack pickFusionSource(net.minecraft.entity.player.PlayerEntity player) {
+        if (player == null) {
+            return null;
+        }
+        for (net.minecraft.util.Hand hand : net.minecraft.util.Hand.values()) {
+            net.minecraft.item.ItemStack stack = player.getStackInHand(hand);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            if (!com.example.smfsaddon.item.ItemGhostHost.boundGhostTypes(stack).isEmpty()) {
+                return stack;
+            }
+        }
+        return null;
+    }
+
+    /**
      * 把我们自己那两个不叫 {@code _skill} 的通道登记进技能面板。
      *
      * <p>卡卡罗特的变身 / 龟派气功走的是 {@code smfsaddon:kakarot_transform} 和
@@ -115,14 +136,15 @@ public class SmfsAddonClient implements ClientModInitializer {
             }
 
             while (SKILL_PALETTE_KEY.wasPressed()) {
-                // 没东西可放就别开空界面：面板按「背包携带」列鬼，
-                // 空手但背包里有融合物时仍然该能开，只有一件都没有才提示
-                if (com.example.smfsaddon.item.FusedGhostSlots.carried(client.player).isEmpty()) {
+                // 面板跟着物品走：拿哪件就只看哪件的鬼。
+                // 背包里可能有好几把融合武器，扫全背包会混在一起。
+                net.minecraft.item.ItemStack source = pickFusionSource(client.player);
+                if (source == null) {
                     client.player.sendMessage(
-                            net.minecraft.text.Text.translatable("message.smfsaddon.skill_palette.empty"),
+                            net.minecraft.text.Text.translatable("message.smfsaddon.skill_palette.need_item"),
                             true);
                 } else {
-                    client.setScreen(new GhostSkillPaletteScreen());
+                    client.setScreen(new GhostSkillPaletteScreen(source));
                 }
             }
 

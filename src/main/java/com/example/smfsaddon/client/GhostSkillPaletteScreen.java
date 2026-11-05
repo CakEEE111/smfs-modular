@@ -1,10 +1,10 @@
 package com.example.smfsaddon.client;
 
 import com.example.smfsaddon.item.GhostNames;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -43,27 +43,35 @@ public class GhostSkillPaletteScreen extends Screen {
     private int page = 0;
     private int rowsPerPage = MIN_ROWS;
 
+    /** 打开这块面板的那件物品：只列它自己绑定的鬼 */
+    private final ItemStack source;
+
     /** 打开时刻：挡掉「按住 X 不放 → 键重复事件立刻把面板关掉」 */
     private final long openedAt = System.currentTimeMillis();
 
-    public GhostSkillPaletteScreen() {
+    public GhostSkillPaletteScreen(ItemStack source) {
         super(Text.literal("灵异技能"));
-        this.rows = buildRows();
+        this.source = source;
+        this.rows = buildRows(source);
     }
 
-    private static List<Row> buildRows() {
+    /**
+     * 只读这一件物品上的鬼。
+     *
+     * <h2>为什么不扫整个背包</h2>
+     *
+     * <p>背包里可能同时放好几把融合武器，扫背包会把它们的技能混在一起，
+     * 玩家分不清"点这个会不会用到另一把剑上的鬼"。所以面板跟物品走：
+     * 拿哪件按 X，就只看那一件。
+     */
+    private static List<Row> buildRows(ItemStack source) {
         List<Row> result = new ArrayList<>();
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) {
+        if (source == null || source.isEmpty()) {
             return result;
         }
 
-        LinkedHashSet<String> types = new LinkedHashSet<>();
-        // 用「背包携带」而不是「手持」：技能资格本来按携带判定，
-        // 面板却只列手持的话，会出现「能放但看不见」的矛盾
-        for (var bound : com.example.smfsaddon.item.FusedGhostSlots.carried(client.player)) {
-            types.add(bound.ghostType());
-        }
+        LinkedHashSet<String> types = new LinkedHashSet<>(
+                com.example.smfsaddon.item.ItemGhostHost.boundGhostTypes(source));
 
         for (String ghostType : types) {
             var entries = GhostSkillChannels.entries(ghostType);
@@ -138,12 +146,18 @@ public class GhostSkillPaletteScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderBackground(context);
         context.drawCenteredTextWithShadow(this.textRenderer, this.title,
-                this.width / 2, 20, 0xFFFFFF);
+                this.width / 2, 16, 0xFFFFFF);
+        // 标题下方标出这块面板属于哪件物品，背包里有多把融合武器时不会看混
+        if (this.source != null && !this.source.isEmpty()) {
+            context.drawCenteredTextWithShadow(this.textRenderer,
+                    Text.literal("§8" + this.source.getName().getString()),
+                    this.width / 2, 29, 0x888888);
+        }
 
         if (this.rows.isEmpty()) {
             context.drawCenteredTextWithShadow(this.textRenderer,
-                    Text.literal("§7背包里没有融合厉鬼的物品"),
-                    this.width / 2, 50, 0xAAAAAA);
+                    Text.literal("§7这件物品上没有融合厉鬼"),
+                    this.width / 2, 54, 0xAAAAAA);
         } else {
             int totalPages = Math.max(1, (this.rows.size() + rowsPerPage - 1) / rowsPerPage);
             if (totalPages > 1) {
