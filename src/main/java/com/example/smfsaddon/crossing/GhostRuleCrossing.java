@@ -68,6 +68,18 @@ public final class GhostRuleCrossing {
     /** 造不出来的类型，记住别再试 */
     private static final Set<Identifier> UNAVAILABLE = new HashSet<>();
 
+    /**
+     * 命中统计：类型 → {判定次数, 判定为真的次数}。
+     *
+     * <p>这是唯一能回答"这条交错到底有没有用"的东西。很多鬼的判定依赖自身场景
+     * （附近有门、域已展开、处在某阶段），影子实例没有这些状态，判定恒为 false ——
+     * 造得出影子但永远是假，比"造不出来"更隐蔽。
+     *
+     * <p>计数按<b>类型</b>全局累计，不分宿主：一只鬼的判定和另一只鬼借同一个类型，
+     * 数据合并看，反而更能看出这个类型是不是普遍白借。
+     */
+    private static final Map<Identifier, long[]> STATS = new HashMap<>();
+
     private static World shadowWorld;
 
     private GhostRuleCrossing() {
@@ -173,7 +185,13 @@ public final class GhostRuleCrossing {
         try {
             // 影子摆到宿主所在位置，让鬼自己的坐标判断成立
             shadow.setPosition(host.getX(), host.getY(), host.getZ());
-            return shadow.shouldAttackPlayer(target);
+            boolean verdict = shadow.shouldAttackPlayer(target);
+            long[] stat = STATS.computeIfAbsent(typeId, ignored -> new long[2]);
+            stat[0]++;
+            if (verdict) {
+                stat[1]++;
+            }
+            return verdict;
         } catch (RuntimeException exception) {
             // 单个类型的判定炸了不该拖垮整只鬼
             UNAVAILABLE.add(typeId);
@@ -185,7 +203,15 @@ public final class GhostRuleCrossing {
     public static void clearCache() {
         SHADOWS.clear();
         UNAVAILABLE.clear();
+        STATS.clear();
         shadowWorld = null;
+    }
+
+    /**
+     * {@code [判定次数, 命中次数]}；没统计过返回 {@code null}。
+     */
+    public static long[] statsOf(Identifier typeId) {
+        return STATS.get(typeId);
     }
 
     /**

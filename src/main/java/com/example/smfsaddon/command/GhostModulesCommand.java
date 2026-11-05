@@ -382,11 +382,23 @@ public final class GhostModulesCommand {
         } else {
             var types = com.example.smfsaddon.ghost.module.impl.CrossingModule.types(crossingData);
             var dead = com.example.smfsaddon.crossing.GhostRuleCrossing.unavailableTypes();
-            long deadCount = types.stream().filter(dead::contains).count();
-            source.sendFeedback(() -> Text.literal("  §a✓ 交错 " + types.size() + " 条 §8" + types), false);
-            if (deadCount > 0) {
-                source.sendFeedback(() -> Text.literal(
-                        "  §e⚠ 其中 " + deadCount + " 条造不出影子 §8（判定恒为 false，等于白借）"), false);
+            source.sendFeedback(() -> Text.literal("  §a✓ 交错 " + types.size() + " 条"), false);
+            for (Identifier borrowed : types) {
+                String name = com.example.smfsaddon.item.GhostNames.of(borrowed.getPath());
+                long[] stat = com.example.smfsaddon.crossing.GhostRuleCrossing.statsOf(borrowed);
+                boolean cannotBuild = dead.contains(borrowed);
+                String line;
+                if (cannotBuild) {
+                    line = "    §8· §c" + name + " §8造不出影子，恒为假";
+                } else if (stat == null) {
+                    line = "    §8· §7" + name + " §8还没判定过";
+                } else {
+                    // 判定过足够多次却一次没命中 → 基本可以认定是白借
+                    boolean suspect = stat[0] >= 5 && stat[1] == 0;
+                    line = "    §8· §7" + name + " §8判定 " + stat[0] + " 次，命中 " + stat[1]
+                            + (suspect ? "  §e疑似白借（它的判定依赖自身场景）" : "");
+                }
+                source.sendFeedback(() -> Text.literal(line), false);
             }
         }
 
