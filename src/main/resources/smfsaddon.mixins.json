@@ -9,7 +9,8 @@
     "ItemStackUseMixin",
     "ServerPlayerInteractionMixin",
     "PlayerDamageMixin",
-    "PlayerEventsGhostMixin"
+    "PlayerEventsGhostMixin",
+    "GhostDomainManagerSkillMixin"
   ],
   "client": [
     "PlayerSsjHairMixin",
