@@ -43,6 +43,9 @@ public class GhostSkillPaletteScreen extends Screen {
     private int page = 0;
     private int rowsPerPage = MIN_ROWS;
 
+    /** 打开时刻：挡掉「按住 X 不放 → 键重复事件立刻把面板关掉」 */
+    private final long openedAt = System.currentTimeMillis();
+
     public GhostSkillPaletteScreen() {
         super(Text.literal("灵异技能"));
         this.rows = buildRows();
@@ -151,6 +154,24 @@ public class GhostSkillPaletteScreen extends Screen {
         }
 
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // 同一个键再按一次就关掉。
+        // 界面打开时按键事件被 Screen 接管，KeyBinding.wasPressed() 收不到，
+        // 所以要和当前绑定键的原始键码比对（跟着玩家的改键走，不写死 X）。
+        var bound = net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
+                .getBoundKeyOf(SmfsAddonClient.SKILL_PALETTE_KEY);
+        if (bound.getCategory() == net.minecraft.client.util.InputUtil.Type.KEYSYM
+                && bound.getCode() == keyCode) {
+            // 刚打开 250ms 内的按键算「开面板的那一下」，不关
+            if (System.currentTimeMillis() - this.openedAt > 250L) {
+                this.close();
+            }
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
