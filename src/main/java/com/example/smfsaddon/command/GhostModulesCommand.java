@@ -208,6 +208,11 @@ public final class GhostModulesCommand {
         }
 
         player.playerScreenHandler.syncState();
+        if (result.grafted() == 0) {
+            // 成功但一条都没进：这些规律本来就在物品上（重复合入）
+            source.sendFeedback(() -> Text.literal("§7这些规律已经在物品上了"), false);
+            return 1;
+        }
         String prefix = result.lucky() ? "§e压制不足，但赌赢了" : "§a已移植";
         source.sendFeedback(() -> Text.literal(prefix + " " + result.grafted() + " 条规律 §8(压制 "
                 + (int) result.suppression() + " / 需求 " + (int) result.required()

@@ -267,7 +267,13 @@ public class GhostFusionScreenHandler extends ScreenHandler {
         GhostGrafting.Result result = GhostGrafting.tryGraftForGhost(target, ghostType, player);
         String names = moduleNames(modules);
 
-        if (result.grafted() == 0) {
+        if (!result.success()) {
+            // 先判失败：赌输时 grafted 也是 0，若先判「0 条」会被误报成
+            // 「这些规律已经在物品上了」，看起来像成功了，实际啥都没进
+            player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
+                    + Math.round(result.chance() * 100) + "%（压制 " + (int) result.suppression()
+                    + " / 需求 " + (int) result.required() + "）"), true);
+        } else if (result.grafted() == 0) {
             player.sendMessage(Text.literal("§7这些规律已经在物品上了"), true);
         } else if (result.lucky()) {
             // 赌赢了也算合入成功，厉鬼同样消耗
@@ -275,15 +281,12 @@ public class GhostFusionScreenHandler extends ScreenHandler {
             player.sendMessage(Text.literal("§e压制不足，赌赢了 §7移植：§f" + names
                     + " §8成功率 " + Math.round(result.chance() * 100) + "%"
                     + " 现有 " + result.grafted() + " 条"), true);
-        } else if (result.success()) {
+        } else {
             // 规律已经进了物品，厉鬼被「用掉」
             this.ghostSlot.setStack(0, ItemStack.EMPTY);
             player.sendMessage(Text.literal("§a已移植：§f" + names
                     + " §8（物品现有 " + result.grafted() + " 条）"
                     + skipped), true);
-        } else {
-            player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
-                    + Math.round(result.chance() * 100) + "%"), true);
         }
 
         // 槽内物品 NBT 变了，必须把槽同步给客户端，否则界面还显示旧物品
