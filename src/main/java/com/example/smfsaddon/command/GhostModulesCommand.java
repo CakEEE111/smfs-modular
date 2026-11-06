@@ -77,14 +77,6 @@ public final class GhostModulesCommand {
                                 .executes(context -> listSlots(context.getSource())))
                         .then(CommandManager.literal("check")
                                 .executes(context -> qualityCheck(context.getSource())))
-                        .then(CommandManager.literal("crossingreset")
-                                .executes(context -> {
-                                    int cleared = com.example.smfsaddon.crossing.GhostRuleCrossing
-                                            .resetEliminated();
-                                    context.getSource().sendFeedback(() -> Text.literal(
-                                            "§a已清空交错淘汰名单，共 " + cleared + " 条"), false);
-                                    return 1;
-                                }))
                         .then(CommandManager.literal("debug")
                                 .executes(context -> toggleDebug(context.getSource())))
                         .then(CommandManager.literal("graft")
@@ -389,16 +381,16 @@ public final class GhostModulesCommand {
                     "  §7· 无交错（和平难度，或这只鬼在交错功能前就已生成）"), false);
         } else {
             var types = com.example.smfsaddon.ghost.module.impl.CrossingModule.types(crossingData);
+            var dead = com.example.smfsaddon.crossing.GhostRuleCrossing.unavailableTypes();
             source.sendFeedback(() -> Text.literal("  §a✓ 交错 " + types.size() + " 条"), false);
             for (Identifier borrowed : types) {
                 String name = com.example.smfsaddon.item.GhostNames.of(borrowed.getPath());
                 long[] stat = com.example.smfsaddon.crossing.GhostRuleCrossing
                         .statsOf(ghost.getUuid(), borrowed);
-                boolean cannotBuild = com.example.smfsaddon.crossing.GhostRuleCrossing.isDead(borrowed);
+                boolean cannotBuild = dead.contains(borrowed);
                 String line;
                 if (cannotBuild) {
-                    line = "    §8· §c" + name + " §8(" + borrowed.getPath()
-                            + ") 已停用：造不出影子或长期 0 命中";
+                    line = "    §8· §c" + name + " §8(" + borrowed.getPath() + ") 造不出影子，恒为假";
                 } else if (stat == null) {
                     line = "    §8· §7" + name + " §8(" + borrowed.getPath() + ") 本鬼还没问过";
                 } else {
