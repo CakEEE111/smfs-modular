@@ -64,14 +64,20 @@ public final class FusionBacklash {
     }
 
     /**
-     * 融合失败的额外灵异伤害：素材厉鬼**最大灵异的 5%**。
+     * 融合失败的额外代价：扣**灵异强度**，为素材厉鬼最大灵异的 5%。
      *
-     * <p>为什么单独一条而不是并进 {@link #apply}：{@code apply} 只拿到缺口比例，
-     * 不知道融合的是哪只鬼；而这一刀要按"你融的那只鬼有多强"来算 ——
-     * 融敲门鬼（最大灵异 2800）失败挨 140，融鬼血（2500）挨 125。
+     * <h2>为什么不是 {@code player.damage(ghostSource, x)}</h2>
      *
-     * <p>走本体的灵异伤害源（{@code ModDamageSources.ghost}）：那是鬼打人的通道，
-     * 会按灵异抗性结算，也不会被普通护甲吃掉。玩家抗性越高，这一刀越轻。
+     * <p>本体里"灵异伤害"打在人身上就是<b>直接扣血</b>——鬼杀玩家用的正是这条通道
+     * （幽灵规律里 {@code target.damage(ghost, 1000)} 就是这个）。所以拿它当惩罚，
+     * 20 血的玩家挨 140 会当场毙命，玩家那一千多灵异强度一点忙都帮不上。
+     *
+     * <p>真正对应"灵异伤害值"的资源是<b>灵异强度</b>（{@code currentSpirit}）：
+     * 它会随复苏因子自然回复，清空也不致死。所以这里扣它。
+     *
+     * <p>扣法有个坑：{@code setSpiritAttribute} 对 CURRENT_SPIRIT 是<b>累加</b>语义
+     * （NBT 里做 {@code current + value}），所以传负数就是扣；扣的量要先夹到
+     * "不超过当前值"，否则会变成负数。
      *
      * @param ghostType 素材厉鬼的类型 id（字符串形式，允许带命名空间）
      */
@@ -80,14 +86,20 @@ public final class FusionBacklash {
             return;
         }
         float maxSpirit = GhostSpiritPower.rawBonus(ghostType);
-        float damage = maxSpirit * SPIRIT_BACKLASH_RATIO;
-        if (damage <= 0.0F) {
+        float loss = maxSpirit * SPIRIT_BACKLASH_RATIO;
+        if (loss <= 0.0F) {
             return;
         }
-        // 清无敌帧：融合是交互动作，不该因为上一刀还在冷却就白吃
-        player.timeUntilRegen = 0;
-        player.damage(com.xie.smfs.damage.ModDamageSources.ghost(player.getWorld()), damage);
-        player.sendMessage(Text.literal("§4灵异反噬 §8−" + Math.round(damage)), true);
+        // 读的是 NBT 里的当前灵异强度，和面板显示同源
+        var data = PlayerEvents.getSpiritAttributes(player);
+        float current = data.contains("currentSpirit") ? (float) data.getDouble("currentSpirit") : 0.0F;
+        float actual = Math.min(loss, current);
+        if (actual <= 0.0F) {
+            player.sendMessage(Text.literal("§4灵异反噬 §8灵异强度已空"), true);
+            return;
+        }
+        PlayerEvents.addSpiritAttribute(player, SpiritAttributes.CURRENT_SPIRIT, -actual);
+        player.sendMessage(Text.literal("§4灵异反噬 §8灵异强度 −" + Math.round(actual)), true);
     }
 
     /**
