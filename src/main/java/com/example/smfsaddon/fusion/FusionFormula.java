@@ -27,8 +27,16 @@ import net.minecraft.entity.player.PlayerEntity;
  */
 public final class FusionFormula {
 
-    /** 灵力上限权重：量大但边际弱 */
-    public static final double WEIGHT_MAX_SPIRIT = 0.10D;
+    /**
+     * 灵力上限权重：<b>全额计入</b>。
+     *
+     * <p>早先取 0.10（"量大但边际弱"），实测直接把玩法锁死：
+     * 最大灵异 5150 的玩家只算 515 压制，而首次合入就要 5400 ——
+     * 一只都融不了，界面上的数字看着像算错了。
+     *
+     * <p>现在全额：5150 就是 5150，首次合入差的那点由抗性与灵异伤害补。
+     */
+    public static final double WEIGHT_MAX_SPIRIT = 1.00D;
 
     /** 灵异抗性权重：最直接，抗性就是拿来压鬼的 */
     public static final double WEIGHT_RESISTANCE = 1.00D;
