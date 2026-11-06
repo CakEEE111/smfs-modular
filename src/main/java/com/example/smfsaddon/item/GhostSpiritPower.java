@@ -28,9 +28,9 @@ import java.util.Map;
  *
  * <h2>为什么是 10%</h2>
  *
- * <p>驾驭物上的灵异数值是"驾驭这只鬼能给你的加成"，属于整个人。
- * 融进物品只窃取一层，取 10%——一只鬼约 +0.5~5 点灵异伤害，
- * 融五只也就 +3~25，与本体武器加成同量级，不至于一把剑秒天秒地。
+ * <p>本体驾驭物的「最大灵异」是 2000~2800 一档，取一成即 200~280 一只。
+ * 融三只 ≈ 730 基础灵异伤害，与本体灵异武器（许愿长枪 310 一档）同量级，
+ * 略高——因为这是拿五只鬼换一把剑，且鬼的价值不该被浪费在物品上一点不剩。
  */
 public final class GhostSpiritPower {
 
@@ -99,11 +99,20 @@ public final class GhostSpiritPower {
     }
 
     /**
-     * 该鬼驾驭物上的原始灵异数值；找不到返回 0。
+     * 该鬼驾驭物上的**最大灵异**；找不到返回 0。
+     *
+     * <h2>为什么取「最大灵异」而不是「灵异伤害」</h2>
+     *
+     * <p>驾驭物上那三项是同一只鬼的三种面板：
+     * 最大灵异（上限，2000~2800 一档）、灵异抗性、灵异伤害（这项很多鬼是 0）。
+     *
+     * <p>取「灵异伤害」会得到荒谬的小数：鬼血是 0、敲门 90、遗忘 180，
+     * 融三只才 27 —— 一把融了三只鬼的剑比空手强不了多少。
+     * 取「最大灵异」才符合"窃取这只鬼的灵异量"的直觉：2500 的一成是 250。
      */
     public static float rawBonus(String ghostType) {
         Item item = itemOf(ghostType);
-        return item instanceof BaseGhostEyeItem eye ? eye.getSpiritDamageBonus() : 0.0F;
+        return item instanceof BaseGhostEyeItem eye ? eye.getMaxSpiritBonus() : 0.0F;
     }
 
     /**
