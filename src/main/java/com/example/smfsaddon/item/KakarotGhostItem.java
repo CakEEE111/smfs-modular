@@ -60,7 +60,6 @@ public class KakarotGhostItem extends BaseGhostEyeItem {
         tooltip.add(Text.translatable("item.smfsaddon.kakarot_ghost.desc").formatted(Formatting.GRAY));
         tooltip.add(Text.translatable("item.smfsaddon.kakarot_ghost.desc2").formatted(Formatting.DARK_RED));
         tooltip.add(Text.empty());
-        tooltip.add(Text.translatable("item.smfsaddon.kakarot_ghost.skill_domain").formatted(Formatting.GOLD));
         tooltip.add(Text.translatable("item.smfsaddon.kakarot_ghost.skill_kame").formatted(Formatting.AQUA));
         tooltip.add(Text.translatable("item.smfsaddon.kakarot_ghost.skill_ssj").formatted(Formatting.YELLOW));
         super.appendTooltip(stack, world, tooltip, context);

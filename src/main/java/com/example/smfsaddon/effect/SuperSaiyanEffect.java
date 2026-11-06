@@ -4,7 +4,6 @@ import com.example.smfsaddon.SmfsAddon;
 import com.example.smfsaddon.manager.KakarotSlots;
 import com.xie.smfs.common.events.PlayerEvents;
 import com.xie.smfs.effect.SpiritAttributes;
-import com.xie.smfs.manager.GhostDomainManager;
 import com.xie.smfs.registry.ModEffects;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.AttributeContainer;
@@ -58,9 +57,6 @@ public class SuperSaiyanEffect extends StatusEffect {
             "spiritDamage", "maxSpirit", "currentSpirit", "spiritResistance"
     };
 
-    /** 复用本体金色鬼域的等级（1 起算） */
-    public static final int DOMAIN_LEVEL = 3;
-
     private static final DustParticleEffect KI_GOLD =
             new DustParticleEffect(new Vec3d(1.0, 0.84, 0.15).toVector3f(), 0.9f);
     private static final DustParticleEffect KI_WHITE =
@@ -100,10 +96,9 @@ public class SuperSaiyanEffect extends StatusEffect {
 
         spawnAura(player);
 
+        // 只保留变身本身：不再给周围玩家施加金色鬼域
         if (player.age % 20 == 0) {
             burnRevival(player);
-            GhostDomainManager.applyTargetGhostDomainToOtherPlayers(
-                    player, ModEffects.GOLDEN_GHOST_DOMAIN_TARGET, DOMAIN_LEVEL);
         }
     }
 
@@ -188,11 +183,6 @@ public class SuperSaiyanEffect extends StatusEffect {
         spirit.put(BACKUP_KEY, backup);
         PlayerEvents.setSpiritAttributes(player, spirit);
 
-        // 鬼域交给本体
-        player.addStatusEffect(new StatusEffectInstance(
-                ModEffects.GOLDEN_GHOST_DOMAIN, Integer.MAX_VALUE, DOMAIN_LEVEL - 1,
-                false, false, true));
-
         ServerWorld world = player.getServerWorld();
         world.spawnParticles(KI_GOLD, player.getX(), player.getBodyY(0.5), player.getZ(),
                 60, 0.6, 0.9, 0.6, 0.35);
@@ -215,7 +205,6 @@ public class SuperSaiyanEffect extends StatusEffect {
         }
 
         restoreSpiritDamage(player);
-        player.removeStatusEffect(ModEffects.GOLDEN_GHOST_DOMAIN);
 
         ServerWorld world = player.getServerWorld();
         world.playSound(null, player.getX(), player.getY(), player.getZ(),
