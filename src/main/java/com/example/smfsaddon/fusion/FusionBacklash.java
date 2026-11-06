@@ -29,9 +29,42 @@ public final class FusionBacklash {
     }
 
     /**
-     * @param shortfall  压制值与需求值的差
-     * @param required   需求值（用来算缺口占比）
-     * @param multiplier 倍率：赌赢 / 赌输的代价不同
+     * 扣理智，下限 0。     *
+     * <h2>为什么不能直接用本体的两个属性 API</h2>
+     *
+     * <p>本体对"理智"有两套存法，而且不同步：
+     *
+     * <ul>
+     *   <li>NBT 缓存里的 {@code sanity} —— <b>本体自己的 tick 与死亡判定读的是这个</b></li>
+     *   <li>属性实例 {@code SpiritAttributes.SANITY} —— 面板显示用</li>
+     * </ul>
+     *
+     * <p>{@code addSpiritAttribute(p, SANITY, -x)} 走 NBT 累加，能扣但<b>不夹 0</b>，
+     * 反复失败会把理智扣成 -40（面板上是负数，死亡判定也不会触发）。
+     *
+     * <p>{@code subtractSpiritAttribute} 看着对，实则对理智无效：它先
+     * {@code getSpiritAttribute} 读的是<b>属性实例</b>（理智不走属性通道，读到 0），
+     * 算出 {@code max(0, 0-24)=0} 再累加 0 —— 等于什么都没做。
+     *
+     * <p>所以这里直接读 NBT、夹 0、再用本体的 {@code setCurrentSanity} 写回
+     * （它会同时更新属性实例并同步客户端）。
+     */
+    private static void drainSanity(PlayerEntity player, float amount) {
+        if (amount <= 0.0F) {
+            return;
+        }
+        net.minecraft.nbt.NbtCompound data = PlayerEvents.getSpiritAttributes(player);
+        float current = data.contains("sanity") ? (float) data.getDouble("sanity") : 100.0F;
+        float next = Math.max(0.0F, current - amount);
+        PlayerEvents.setCurrentSanity(player, next);
+    }
+
+    /**
+     * 规律反噬：融合时规律凑不够数，缺口越大代价越重。
+     *
+     * @param shortfall  缺口（还差多少压制成本）
+     * @param required   该物品需要的总压制成本
+     * @param multiplier 难度倍率（0.6 / 1.2）
      */
     public static void apply(PlayerEntity player, double shortfall, double required,
                              double multiplier) {
@@ -44,12 +77,8 @@ public final class FusionBacklash {
         double scaled = ratio * multiplier;
 
         // ① 理智：4 ~ 24
-        //
-        // 必须用 subtract 而不是 add(-x)：本体只有 subtract 会夹到 0，
-        // add 会一路减成负数。负数不会触发本体"理智归零即死"的判定（它判的是 <= 0 之外
-        // 还有配置总开关），于是玩家带着 -40 理智活着，面板上是个荒谬的数。
         float sanityLoss = (float) (4.0D + 20.0D * scaled);
-        PlayerEvents.subtractSpiritAttribute(player, SpiritAttributes.SANITY, sanityLoss);
+        drainSanity(player, sanityLoss);
 
         // ② 生命：2 ~ 12
         float damage = (float) (2.0D + 8.0D * scaled);
