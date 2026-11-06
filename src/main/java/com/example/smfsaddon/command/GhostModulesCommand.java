@@ -403,6 +403,19 @@ public final class GhostModulesCommand {
                 }
                 source.sendFeedback(() -> Text.literal(line), false);
             }
+
+            var borrowed = com.example.smfsaddon.ghost.module.impl.CrossingModule
+                    .mechanisms(crossingData);
+            if (!borrowed.isEmpty()) {
+                java.util.List<String> names = new java.util.ArrayList<>();
+                for (Identifier moduleId : borrowed) {
+                    GhostModule module = GhostModuleRegistry.get(moduleId);
+                    names.add(module == null ? moduleId.getPath() : module.displayName());
+                }
+                source.sendFeedback(() -> Text.literal(
+                        "  §d借来的机制 §8(" + borrowed.size() + ")：§f" + String.join("、", names)),
+                        false);
+            }
         }
 
         long conflict = groups.values().stream().filter(count -> count > 1).count();

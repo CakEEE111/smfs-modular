@@ -36,6 +36,9 @@ public final class CrossingModule implements GhostOnlyModule {
     /** 借来的鬼种，逗号分隔，与本源规律同一种存法 */
     private static final String KEY_TYPES = "Types";
 
+    /** 借来的机制模块 id，逗号分隔 */
+    private static final String KEY_MECHANISMS = "Mechanisms";
+
     @Override
     public Identifier id() {
         return ID;
@@ -63,11 +66,39 @@ public final class CrossingModule implements GhostOnlyModule {
     }
 
     public static List<Identifier> types(GhostModuleData data) {
+        return parse(data, KEY_TYPES);
+    }
+
+    public static void setTypes(GhostModuleData data, List<Identifier> types) {
+        if (data == null) {
+            return;
+        }
+        data.custom().putString(KEY_TYPES, join(types));
+    }
+
+    /**
+     * 借来的机制模块（踩头、空间压制、鬼域在场这类）。
+     *
+     * <p>与"借规律"分开记：规律决定该不该杀，机制决定用什么手段，
+     * 排查时要能分开看 —— 规律全白借但机制生效，是完全不同的结论。
+     */
+    public static List<Identifier> mechanisms(GhostModuleData data) {
+        return parse(data, KEY_MECHANISMS);
+    }
+
+    public static void setMechanisms(GhostModuleData data, List<Identifier> ids) {
+        if (data == null) {
+            return;
+        }
+        data.custom().putString(KEY_MECHANISMS, join(ids));
+    }
+
+    private static List<Identifier> parse(GhostModuleData data, String key) {
         List<Identifier> result = new ArrayList<>();
         if (data == null) {
             return result;
         }
-        for (String raw : data.custom().getString(KEY_TYPES).split(",")) {
+        for (String raw : data.custom().getString(key).split(",")) {
             if (raw.isBlank()) {
                 continue;
             }
@@ -79,18 +110,15 @@ public final class CrossingModule implements GhostOnlyModule {
         return result;
     }
 
-    public static void setTypes(GhostModuleData data, List<Identifier> types) {
-        if (data == null) {
-            return;
-        }
+    private static String join(List<Identifier> ids) {
         StringBuilder builder = new StringBuilder();
-        for (Identifier id : types) {
+        for (Identifier id : ids) {
             if (builder.length() > 0) {
                 builder.append(',');
             }
             builder.append(id);
         }
-        data.custom().putString(KEY_TYPES, builder.toString());
+        return builder.toString();
     }
 
     private static final class CrossedStrikeRule implements GhostRule {

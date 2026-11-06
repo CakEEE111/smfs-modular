@@ -60,6 +60,40 @@ public final class GhostRuleCrossing {
             net.minecraft.world.Difficulty.HARD, 4
     );
 
+    /**
+     * 可被借走的「机制」模块白名单。
+     *
+     * <p>不是所有模块都能往鬼身上装：
+     *
+     * <ul>
+     *   <li>{@code door_bane} 只听 {@code item_use} —— 那是"物品被使用"，鬼用不上</li>
+     *   <li>{@code scapegoat} 听 {@code owner_damaged} —— 需要"主人"，鬼没有主人</li>
+     *   <li>{@code native_rule} 和 {@code crossing} 是判定本身，不能再借一层</li>
+     *   <li>{@code cornered} 是拼图协同，拆开就失效</li>
+     * </ul>
+     *
+     * <p>剩下的这三个，事件都能在鬼宿主上触发。白名单写死比"猜"安全：
+     * 装错模块不会报错，只会静默不生效，排查起来极难。
+     */
+    private static final List<Identifier> BORROWABLE_MECHANISMS = List.of(
+            com.example.smfsaddon.ghost.module.impl.StepGhostModule.ID,
+            com.example.smfsaddon.ghost.module.impl.SpatialPressureModule.ID,
+            com.example.smfsaddon.ghost.module.impl.DomainPresenceModule.ID
+    );
+
+    /**
+     * 难度 → 借用机制个数。
+     *
+     * <p>比规律少：一条机制顶得上好几条判定（踩头是一击必杀），
+     * 借太多会让"交错"变成"缝合怪"，玩家连它是什么鬼都认不出来。
+     */
+    private static final Map<net.minecraft.world.Difficulty, Integer> MECHANISM_COUNT = Map.of(
+            net.minecraft.world.Difficulty.PEACEFUL, 0,
+            net.minecraft.world.Difficulty.EASY, 0,
+            net.minecraft.world.Difficulty.NORMAL, 1,
+            net.minecraft.world.Difficulty.HARD, 2
+    );
+
     /** 能当影子的类型（懒加载一次，之后复用） */
     private static List<Identifier> pool;
 
@@ -166,12 +200,52 @@ public final class GhostRuleCrossing {
         try {
             GhostModuleData data = GhostModuleDispatcher.attach(host, CrossingModule.ID);
             CrossingModule.setTypes(data, picked);
+
+            // 机制借用：规律决定"该不该杀"，机制决定"用什么手段"
+            List<Identifier> mechanisms = borrowMechanisms(host, ghost, countForMechanisms(ghost.getWorld()));
+            CrossingModule.setMechanisms(data, mechanisms);
+            SmfsAddon.LOGGER.info("[smfsaddon] 灵异交错：{} 获得 {} 条外来规律 {}，{} 个机制 {}",
+                    own, picked.size(), picked, mechanisms.size(), mechanisms);
         } catch (RuntimeException exception) {
             SmfsAddon.LOGGER.warn("[smfsaddon] 交错挂载失败：{}", exception.getMessage());
-            return;
         }
-        SmfsAddon.LOGGER.info("[smfsaddon] 灵异交错：{} 获得 {} 条外来规律 {}",
-                own, picked.size(), picked);
+    }
+
+    /**
+     * 挑几个机制装上去。
+     *
+     * @param want 想要几个；没装过的才候选
+     */
+    private static List<Identifier> borrowMechanisms(LingyiHost host, GhostEntity ghost, int want) {
+        List<Identifier> result = new ArrayList<>();
+        if (want <= 0) {
+            return result;
+        }
+        List<Identifier> candidates = new ArrayList<>();
+        for (Identifier moduleId : BORROWABLE_MECHANISMS) {
+            // 装配表已经给过的就不算"借"
+            if (!host.modules().has(moduleId)) {
+                candidates.add(moduleId);
+            }
+        }
+        for (int i = 0; i < want && !candidates.isEmpty(); i++) {
+            Identifier picked = candidates.remove(ghost.getRandom().nextInt(candidates.size()));
+            try {
+                GhostModuleDispatcher.attach(host, picked);
+                result.add(picked);
+            } catch (RuntimeException exception) {
+                // 能力不匹配就跳过，别拖垮整只鬼的交错
+                SmfsAddon.LOGGER.warn("[smfsaddon] 借用机制 {} 失败：{}", picked, exception.getMessage());
+            }
+        }
+        return result;
+    }
+
+    public static int countForMechanisms(World world) {
+        if (world == null) {
+            return 0;
+        }
+        return MECHANISM_COUNT.getOrDefault(world.getDifficulty(), 0);
     }
 
     /**
