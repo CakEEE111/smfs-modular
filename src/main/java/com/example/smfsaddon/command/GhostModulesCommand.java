@@ -385,17 +385,19 @@ public final class GhostModulesCommand {
             source.sendFeedback(() -> Text.literal("  §a✓ 交错 " + types.size() + " 条"), false);
             for (Identifier borrowed : types) {
                 String name = com.example.smfsaddon.item.GhostNames.of(borrowed.getPath());
-                long[] stat = com.example.smfsaddon.crossing.GhostRuleCrossing.statsOf(borrowed);
+                long[] stat = com.example.smfsaddon.crossing.GhostRuleCrossing
+                        .statsOf(ghost.getUuid(), borrowed);
                 boolean cannotBuild = dead.contains(borrowed);
                 String line;
                 if (cannotBuild) {
-                    line = "    §8· §c" + name + " §8造不出影子，恒为假";
+                    line = "    §8· §c" + name + " §8(" + borrowed.getPath() + ") 造不出影子，恒为假";
                 } else if (stat == null) {
-                    line = "    §8· §7" + name + " §8还没判定过";
+                    line = "    §8· §7" + name + " §8(" + borrowed.getPath() + ") 本鬼还没问过";
                 } else {
-                    // 判定过足够多次却一次没命中 → 基本可以认定是白借
+                    // 问过足够多次却一次没命中 → 基本可以认定是白借
                     boolean suspect = stat[0] >= 5 && stat[1] == 0;
-                    line = "    §8· §7" + name + " §8判定 " + stat[0] + " 次，命中 " + stat[1]
+                    line = "    §8· §7" + name + " §8(" + borrowed.getPath() + ") 本鬼询问 "
+                            + stat[0] + " 次，命中 " + stat[1]
                             + (suspect ? "  §e疑似白借（它的判定依赖自身场景）" : "");
                 }
                 source.sendFeedback(() -> Text.literal(line), false);

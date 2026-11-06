@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 灵异交错：让一只鬼除了自己的杀人规律，还会用别人的。
@@ -69,16 +70,19 @@ public final class GhostRuleCrossing {
     private static final Set<Identifier> UNAVAILABLE = new HashSet<>();
 
     /**
-     * 命中统计：类型 → {判定次数, 判定为真的次数}。
+     * 命中统计：<b>宿主</b> → 类型 → {询问次数, 命中次数}。
      *
-     * <p>这是唯一能回答"这条交错到底有没有用"的东西。很多鬼的判定依赖自身场景
-     * （附近有门、域已展开、处在某阶段），影子实例没有这些状态，判定恒为 false ——
-     * 造得出影子但永远是假，比"造不出来"更隐蔽。
+     * <p>早先是按类型全局累计，结果质检里三条交错永远显示同一个数
+     * （161/161/161）—— 因为那是"所有借过这个类型的鬼加起来"，
+     * 不是"这只鬼问了几次"。按宿主分开，才能回答"它到底用没用上"。
      *
-     * <p>计数按<b>类型</b>全局累计，不分宿主：一只鬼的判定和另一只鬼借同一个类型，
-     * 数据合并看，反而更能看出这个类型是不是普遍白借。
+     * <p>放内存不放 NBT：判定是每 tick 都会发生的高频事件，
+     * 每次都写盘会把存档写烂。服务端停止时清空。
      */
-    private static final Map<Identifier, long[]> STATS = new HashMap<>();
+    private static final Map<UUID, Map<Identifier, long[]>> HOST_STATS = new HashMap<>();
+
+    /** 统计表上限，防止长跑服务器攒满 */
+    private static final int HOST_STATS_LIMIT = 1024;
 
     private static World shadowWorld;
 
@@ -186,11 +190,7 @@ public final class GhostRuleCrossing {
             // 影子摆到宿主所在位置，让鬼自己的坐标判断成立
             shadow.setPosition(host.getX(), host.getY(), host.getZ());
             boolean verdict = shadow.shouldAttackPlayer(target);
-            long[] stat = STATS.computeIfAbsent(typeId, ignored -> new long[2]);
-            stat[0]++;
-            if (verdict) {
-                stat[1]++;
-            }
+            record(host.getUuid(), typeId, verdict);
             return verdict;
         } catch (RuntimeException exception) {
             // 单个类型的判定炸了不该拖垮整只鬼
@@ -199,19 +199,39 @@ public final class GhostRuleCrossing {
         }
     }
 
+    private static void record(UUID hostId, Identifier typeId, boolean hit) {
+        if (hostId == null) {
+            return;
+        }
+        if (HOST_STATS.size() > HOST_STATS_LIMIT) {
+            HOST_STATS.clear();
+        }
+        long[] stat = HOST_STATS
+                .computeIfAbsent(hostId, ignored -> new HashMap<>())
+                .computeIfAbsent(typeId, ignored -> new long[2]);
+        stat[0]++;
+        if (hit) {
+            stat[1]++;
+        }
+    }
+
     /** 世界卸载时清空，别让 ServerWorld 被静态表攥住 */
     public static void clearCache() {
         SHADOWS.clear();
         UNAVAILABLE.clear();
-        STATS.clear();
+        HOST_STATS.clear();
         shadowWorld = null;
     }
 
     /**
-     * {@code [判定次数, 命中次数]}；没统计过返回 {@code null}。
+     * 这只鬼对某个类型的判定统计 {@code [询问次数, 命中次数]}；没统计过返回 {@code null}。
      */
-    public static long[] statsOf(Identifier typeId) {
-        return STATS.get(typeId);
+    public static long[] statsOf(UUID hostId, Identifier typeId) {
+        if (hostId == null) {
+            return null;
+        }
+        Map<Identifier, long[]> perHost = HOST_STATS.get(hostId);
+        return perHost == null ? null : perHost.get(typeId);
     }
 
     /**
