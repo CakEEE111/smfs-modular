@@ -1,5 +1,6 @@
 package com.example.smfsaddon.fusion;
 
+import com.example.smfsaddon.item.GhostSpiritPower;
 import com.xie.smfs.common.events.PlayerEvents;
 import com.xie.smfs.effect.SpiritAttributes;
 import net.minecraft.entity.player.PlayerEntity;
@@ -24,6 +25,9 @@ public final class FusionBacklash {
 
     /** 赌输了的代价 */
     public static final double FACTOR_FAILED = 1.2D;
+
+    /** 融合失败额外挨的灵异伤害 = 素材鬼最大灵异 × 这个比例 */
+    public static final float SPIRIT_BACKLASH_RATIO = 0.05F;
 
     private FusionBacklash() {
     }
@@ -57,6 +61,33 @@ public final class FusionBacklash {
         float current = data.contains("sanity") ? (float) data.getDouble("sanity") : 100.0F;
         float next = Math.max(0.0F, current - amount);
         PlayerEvents.setCurrentSanity(player, next);
+    }
+
+    /**
+     * 融合失败的额外灵异伤害：素材厉鬼**最大灵异的 5%**。
+     *
+     * <p>为什么单独一条而不是并进 {@link #apply}：{@code apply} 只拿到缺口比例，
+     * 不知道融合的是哪只鬼；而这一刀要按"你融的那只鬼有多强"来算 ——
+     * 融敲门鬼（最大灵异 2800）失败挨 140，融鬼血（2500）挨 125。
+     *
+     * <p>走本体的灵异伤害源（{@code ModDamageSources.ghost}）：那是鬼打人的通道，
+     * 会按灵异抗性结算，也不会被普通护甲吃掉。玩家抗性越高，这一刀越轻。
+     *
+     * @param ghostType 素材厉鬼的类型 id（字符串形式，允许带命名空间）
+     */
+    public static void spiritBacklash(PlayerEntity player, String ghostType) {
+        if (player == null || player.getWorld() == null || player.getWorld().isClient()) {
+            return;
+        }
+        float maxSpirit = GhostSpiritPower.rawBonus(ghostType);
+        float damage = maxSpirit * SPIRIT_BACKLASH_RATIO;
+        if (damage <= 0.0F) {
+            return;
+        }
+        // 清无敌帧：融合是交互动作，不该因为上一刀还在冷却就白吃
+        player.timeUntilRegen = 0;
+        player.damage(com.xie.smfs.damage.ModDamageSources.ghost(player.getWorld()), damage);
+        player.sendMessage(Text.literal("§4灵异反噬 §8−" + Math.round(damage)), true);
     }
 
     /**

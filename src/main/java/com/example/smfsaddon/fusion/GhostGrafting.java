@@ -113,7 +113,12 @@ public final class GhostGrafting {
         if (entityType == null) {
             return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false);
         }
-        return tryGraft(target, graftPlanFor(entityType), player, entityType);
+        Result result = tryGraft(target, graftPlanFor(entityType), player, entityType);
+        // 赌输了再补一刀灵异伤害：素材鬼最大灵异的 5%
+        if (!result.success()) {
+            FusionBacklash.spiritBacklash(player, entityType.toString());
+        }
+        return result;
     }
 
     public static Result tryGraft(ItemStack target, List<Identifier> moduleIds, PlayerEntity player) {
