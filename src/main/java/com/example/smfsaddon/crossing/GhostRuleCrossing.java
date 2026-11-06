@@ -104,6 +104,24 @@ public final class GhostRuleCrossing {
     private static final Set<Identifier> UNAVAILABLE = new HashSet<>();
 
     /**
+     * 被统计淘汰的类型。
+     *
+     * <h2>为什么要有这个</h2>
+     *
+     * <p>别的附属的鬼长什么样我们事先不知道，也不可能要求作者配合写标记。
+     * 所以只能看结果：某个类型被问了很多次、一次都没命中，就说明它的判定
+     * 依赖影子复现不了的东西（自己的 map、阶段状态、域内其他鬼……），
+     * 下次交错不再抽它。
+     *
+     * <p>门槛取 200 次，是为了别把"玩家刚好没满足条件"误判成"这条是废的"。
+     * 误判也不是不可逆：{@link #resetEliminated()} 或者重启服务器就清空。
+     */
+    private static final Set<Identifier> ELIMINATED = new HashSet<>();
+
+    /** 判定多少次仍 0 命中就淘汰 */
+    private static final int ELIMINATE_AFTER_EVALS = 200;
+
+    /**
      * 命中统计：<b>宿主</b> → 类型 → {询问次数, 命中次数}。
      *
      * <p>早先是按类型全局累计，结果质检里三条交错永远显示同一个数
@@ -187,6 +205,8 @@ public final class GhostRuleCrossing {
         Identifier own = Registries.ENTITY_TYPE.getId(ghost.getType());
         List<Identifier> candidates = new ArrayList<>(pool(ghost.getWorld()));
         candidates.remove(own);
+        // 被淘汰的类型不再发出去 —— 池子是开服时建的，淘汰是运行时才知道的
+        candidates.removeIf(GhostRuleCrossing::isDead);
         if (candidates.isEmpty()) {
             return;
         }
@@ -253,7 +273,8 @@ public final class GhostRuleCrossing {
      */
     public static boolean ask(Identifier typeId, GhostEntity host, PlayerEntity target) {
         World world = host.getWorld();
-        if (world == null || target == null || UNAVAILABLE.contains(typeId)) {
+        if (world == null || target == null
+                || UNAVAILABLE.contains(typeId) || ELIMINATED.contains(typeId)) {
             return false;
         }
         if (shadowWorld != world) {
@@ -331,12 +352,30 @@ public final class GhostRuleCrossing {
         if (hit) {
             stat[2]++;
         }
+        // 问了够多次还一次没命中 → 这条判定影子复现不了，以后别再抽它
+        if (stat[1] >= ELIMINATE_AFTER_EVALS && stat[2] == 0 && ELIMINATED.add(typeId)) {
+            SmfsAddon.LOGGER.info("[smfsaddon] 交错淘汰 {}：判定 {} 次 0 命中，判定依赖自身状态",
+                    typeId, stat[1]);
+        }
+    }
+
+    /** 是否已被判为"借了也没用"（造不出影子，或长期 0 命中） */
+    public static boolean isDead(Identifier typeId) {
+        return UNAVAILABLE.contains(typeId) || ELIMINATED.contains(typeId);
+    }
+
+    /** 清空淘汰名单，给调参留的后悔药 */
+    public static int resetEliminated() {
+        int count = ELIMINATED.size();
+        ELIMINATED.clear();
+        return count;
     }
 
     /** 世界卸载时清空，别让 ServerWorld 被静态表攥住 */
     public static void clearCache() {
         SHADOWS.clear();
         UNAVAILABLE.clear();
+        ELIMINATED.clear();
         HOST_STATS.clear();
         ASK_CACHE.clear();
         shadowWorld = null;
