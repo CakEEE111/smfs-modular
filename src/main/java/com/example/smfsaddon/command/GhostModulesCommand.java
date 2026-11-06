@@ -395,9 +395,10 @@ public final class GhostModulesCommand {
                     line = "    §8· §7" + name + " §8(" + borrowed.getPath() + ") 本鬼还没问过";
                 } else {
                     // 问过足够多次却一次没命中 → 基本可以认定是白借
-                    boolean suspect = stat[0] >= 5 && stat[1] == 0;
-                    line = "    §8· §7" + name + " §8(" + borrowed.getPath() + ") 本鬼询问 "
-                            + stat[0] + " 次，命中 " + stat[1]
+                    boolean suspect = stat[1] >= 5 && stat[2] == 0;
+                    line = "    §8· §7" + name + " §8(" + borrowed.getPath()
+                            + ") 询问 " + stat[0] + " 次，实算 " + stat[1]
+                            + "，命中 " + stat[2]
                             + (suspect ? "  §e疑似白借（它的判定依赖自身场景）" : "");
                 }
                 source.sendFeedback(() -> Text.literal(line), false);

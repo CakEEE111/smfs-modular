@@ -84,6 +84,29 @@ public final class GhostRuleCrossing {
     /** 统计表上限，防止长跑服务器攒满 */
     private static final int HOST_STATS_LIMIT = 1024;
 
+    /**
+     * 判定结果缓存：{@code (宿主, 目标, 类型) → [过期世界时间, 结果]}。
+     *
+     * <h2>为什么必须缓存</h2>
+     *
+     * <p>本体在 tick 里对<b>每个域内玩家</b>问一次"该不该杀"，实测三秒能问上百次。
+     * 每次询问都要问遍借来的类型，而其中有些类型的判定内部会扫实体
+     * （门鬼、警官、敲门、垃圾这四只的 {@code shouldAttackPlayer} 里有
+     * {@code getEntitiesByClass} / stream）—— 不缓存等于每 tick 做几次实体扫描。
+     *
+     * <p>TTL 取 10 tick（0.5 秒）：鬼的反应慢半秒玩家察觉不到，
+     * 但实算次数直接降到 1/10。命中结果同样缓存，不会出现"忽打忽停"。
+     */
+    private static final Map<AskKey, long[]> ASK_CACHE = new HashMap<>();
+
+    private static final int ASK_TTL_TICKS = 10;
+
+    private static final int ASK_CACHE_LIMIT = 8192;
+
+    /** 缓存键：谁问的、问的谁、用的谁的判定 */
+    private record AskKey(UUID host, UUID target, Identifier type) {
+    }
+
     private static World shadowWorld;
 
     private GhostRuleCrossing() {
@@ -161,7 +184,18 @@ public final class GhostRuleCrossing {
         }
         if (shadowWorld != world) {
             SHADOWS.clear();
+            ASK_CACHE.clear();
             shadowWorld = world;
+        }
+
+        // ① 先看缓存：0.5 秒内的重复询问直接回答
+        long now = world.getTime();
+        AskKey key = new AskKey(host.getUuid(), target.getUuid(), typeId);
+        long[] cached = ASK_CACHE.get(key);
+        if (cached != null && now < cached[0]) {
+            boolean verdict = cached[1] != 0L;
+            record(host.getUuid(), typeId, verdict, false);
+            return verdict;
         }
 
         GhostEntity shadow = SHADOWS.get(typeId);
@@ -190,7 +224,11 @@ public final class GhostRuleCrossing {
             // 影子摆到宿主所在位置，让鬼自己的坐标判断成立
             shadow.setPosition(host.getX(), host.getY(), host.getZ());
             boolean verdict = shadow.shouldAttackPlayer(target);
-            record(host.getUuid(), typeId, verdict);
+            if (ASK_CACHE.size() > ASK_CACHE_LIMIT) {
+                ASK_CACHE.clear();
+            }
+            ASK_CACHE.put(key, new long[]{now + ASK_TTL_TICKS, verdict ? 1L : 0L});
+            record(host.getUuid(), typeId, verdict, true);
             return verdict;
         } catch (RuntimeException exception) {
             // 单个类型的判定炸了不该拖垮整只鬼
@@ -199,7 +237,10 @@ public final class GhostRuleCrossing {
         }
     }
 
-    private static void record(UUID hostId, Identifier typeId, boolean hit) {
+    /**
+     * @param evaluated 是否真的算了一次（false = 命中缓存）
+     */
+    private static void record(UUID hostId, Identifier typeId, boolean hit, boolean evaluated) {
         if (hostId == null) {
             return;
         }
@@ -208,10 +249,13 @@ public final class GhostRuleCrossing {
         }
         long[] stat = HOST_STATS
                 .computeIfAbsent(hostId, ignored -> new HashMap<>())
-                .computeIfAbsent(typeId, ignored -> new long[2]);
+                .computeIfAbsent(typeId, ignored -> new long[3]);
         stat[0]++;
-        if (hit) {
+        if (evaluated) {
             stat[1]++;
+        }
+        if (hit) {
+            stat[2]++;
         }
     }
 
@@ -220,11 +264,12 @@ public final class GhostRuleCrossing {
         SHADOWS.clear();
         UNAVAILABLE.clear();
         HOST_STATS.clear();
+        ASK_CACHE.clear();
         shadowWorld = null;
     }
 
     /**
-     * 这只鬼对某个类型的判定统计 {@code [询问次数, 命中次数]}；没统计过返回 {@code null}。
+     * 这只鬼对某个类型的统计 {@code [询问次数, 实算次数, 命中次数]}；没统计过返回 {@code null}。
      */
     public static long[] statsOf(UUID hostId, Identifier typeId) {
         if (hostId == null) {
