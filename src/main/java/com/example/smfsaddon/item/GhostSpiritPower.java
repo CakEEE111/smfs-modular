@@ -37,6 +37,15 @@ public final class GhostSpiritPower {
     /** 每只鬼窃取的比例 */
     public static final float STEAL_RATIO = 0.10F;
 
+    /**
+     * 继承倍率：玩家自身灵异伤害转成武器伤害的比例。
+     *
+     * <p>取本体的默认值 50%（{@code SpiritWeapon.getSpiritDamageMultiplier}）。
+     * 公式与本体一致：
+     * <pre>实际灵异伤害 = 基础灵异伤害 + 玩家灵异伤害 × 继承倍率</pre>
+     */
+    public static final float INHERIT_MULTIPLIER = 0.5F;
+
     /** 鬼种 → 该鬼贡献的灵异伤害（已乘比例） */
     private static final Map<String, Float> CACHE = new HashMap<>();
 
@@ -44,9 +53,9 @@ public final class GhostSpiritPower {
     }
 
     /**
-     * 一件物品的总灵异伤害 = 各只鬼贡献之和。
+     * 基础灵异伤害 = 各只鬼贡献之和（不含玩家继承部分）。
      */
-    public static float totalOf(ItemStack stack) {
+    public static float baseOf(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return 0.0F;
         }
@@ -55,6 +64,22 @@ public final class GhostSpiritPower {
             total += of(ghostType);
         }
         return total;
+    }
+
+    /**
+     * 实际灵异伤害 = 基础 + 玩家灵异伤害 × 继承倍率。
+     */
+    public static float totalOf(ItemStack stack, net.minecraft.entity.player.PlayerEntity player) {
+        float base = baseOf(stack);
+        if (base <= 0.0F) {
+            return 0.0F;
+        }
+        float playerSpirit = 0.0F;
+        if (player != null) {
+            playerSpirit = com.xie.smfs.common.events.PlayerEvents.getSpiritAttribute(
+                    player, com.xie.smfs.effect.SpiritAttributes.SPIRIT_DAMAGE);
+        }
+        return base + playerSpirit * INHERIT_MULTIPLIER;
     }
 
     /**

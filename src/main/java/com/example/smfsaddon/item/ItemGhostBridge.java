@@ -4,6 +4,7 @@ import com.example.smfsaddon.ghost.module.GhostDebug;
 import com.example.smfsaddon.ghost.module.GhostModuleData;
 import com.example.smfsaddon.ghost.module.GhostModuleDispatcher;
 import com.example.smfsaddon.ghost.module.event.GhostItemUseEvent;
+import com.xie.smfs.entity.GhostEntity;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -88,26 +89,32 @@ public final class ItemGhostBridge {
     /**
      * 融合物品的灵异伤害。
      *
-     * <h2>为什么必须走本体的伤害源</h2>
+     * <h2>为什么不能直接 {@code target.damage(...)}</h2>
      *
-     * <p>原版 {@code playerAttack} 打在鬼身上会被当成无效伤害 ——
-     * 有数字飘出来，实际不掉灵异强度。本体的 {@code ModDamageSources.ghost()}
-     * 才是"灵异伤害"这条通道，门后必杀那条规律用的也是它。
+     * <p>本体对鬼的伤害不走 {@code LivingEntity.damage} ——
+     * 鬼的血量是 100000，真正的"血条"是 <b>灵异强度</b>，
+     * 而扣它只有一个入口：{@link GhostEntity#handleSkillSpiritDamage}。
+     * 它内部做抗性换算、扣强度、飘字，全套都由本体负责。
      *
-     * <p>伤害值来自 {@link GhostSpiritPower}：每只融进去的鬼贡献其驾驭物灵异数值的 10%。
+     * <p>用 {@code ModDamageSources.ghost()} 打过去等于"鬼打鬼"，
+     * 会被本体当成同类伤害忽略 —— 这就是之前"打鬼没反应"的原因。
+     *
+     * <p>公式与本体灵异武器一致：
+     * <pre>实际伤害 = 基础灵异伤害 + 玩家灵异伤害 × 继承倍率</pre>
      */
     private static void applySpiritDamage(ItemStack stack, PlayerEntity attacker, LivingEntity target) {
-        if (target == attacker || !target.isAlive()) {
+        if (!(target instanceof GhostEntity ghost) || target == attacker || !target.isAlive()) {
+            // 只对鬼生效：普通生物本来就能被打，再叠一份灵异伤害等于一剑两吃
             return;
         }
-        float spirit = GhostSpiritPower.totalOf(stack);
-        if (spirit <= 0.0F) {
+        if (!(attacker instanceof net.minecraft.server.network.ServerPlayerEntity player)) {
             return;
         }
-        // 这一下发生在普通攻击之后，目标还处于 10 tick 无敌帧里，
-        // 直接打会被吃掉。清掉无敌计时再打 —— 灵异伤害是叠加的，不是替换。
-        target.timeUntilRegen = 0;
-        target.damage(com.xie.smfs.damage.ModDamageSources.ghost(attacker.getWorld()), spirit);
+        float amount = GhostSpiritPower.totalOf(stack, player);
+        if (amount <= 0.0F) {
+            return;
+        }
+        ghost.handleSkillSpiritDamage(player, amount);
     }
 
     /**
