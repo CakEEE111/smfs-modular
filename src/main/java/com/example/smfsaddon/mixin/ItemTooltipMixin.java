@@ -69,8 +69,15 @@ public abstract class ItemTooltipMixin {
             return;
         }
 
+        // 灵异伤害：每只鬼窃取其驾驭物灵异数值的 10%，让玩家知道这把剑能伤到鬼
+        float spirit = com.example.smfsaddon.item.GhostSpiritPower.totalOf(stack);
+        if (spirit > 0.0F) {
+            lines.add(Text.literal("§8· §7灵异伤害 §c+"
+                    + String.format("%.1f", spirit)));
+        }
+
         tooltip.add(Text.literal(""));
-        tooltip.add(Text.literal("§8灵异词条 ×" + lines.size()));
+        tooltip.add(Text.literal("§8灵异词条 ×" + ItemGhostHost.boundGhostTypes(stack).size()));
         tooltip.addAll(lines);
     }
 }
