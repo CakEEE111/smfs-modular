@@ -44,8 +44,12 @@ public final class FusionBacklash {
         double scaled = ratio * multiplier;
 
         // ① 理智：4 ~ 24
+        //
+        // 必须用 subtract 而不是 add(-x)：本体只有 subtract 会夹到 0，
+        // add 会一路减成负数。负数不会触发本体"理智归零即死"的判定（它判的是 <= 0 之外
+        // 还有配置总开关），于是玩家带着 -40 理智活着，面板上是个荒谬的数。
         float sanityLoss = (float) (4.0D + 20.0D * scaled);
-        PlayerEvents.addSpiritAttribute(player, SpiritAttributes.SANITY, -sanityLoss);
+        PlayerEvents.subtractSpiritAttribute(player, SpiritAttributes.SANITY, sanityLoss);
 
         // ② 生命：2 ~ 12
         float damage = (float) (2.0D + 8.0D * scaled);
