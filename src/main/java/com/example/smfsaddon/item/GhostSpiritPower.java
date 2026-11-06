@@ -38,18 +38,31 @@ public final class GhostSpiritPower {
     public static final float STEAL_RATIO = 0.10F;
 
     /**
-     * 继承倍率：玩家自身灵异伤害转成武器伤害的比例。
+     * 继承倍率：<b>每只鬼加 50%</b>。
      *
-     * <p>取本体的默认值 50%（{@code SpiritWeapon.getSpiritDamageMultiplier}）。
-     * 公式与本体一致：
-     * <pre>实际灵异伤害 = 基础灵异伤害 + 玩家灵异伤害 × 继承倍率</pre>
+     * <p>融三只 = 150%，融五只 = 250%。与本体单个灵异武器（许愿长枪 +150%）
+     * 同一个含义，只是这里按鬼的数量累加——融得越多，越能把玩家自己的
+     * 灵异伤害灌进这把武器。
+     *
+     * <p>公式：
+     * <pre>实际灵异伤害 = 基础灵异伤害 + 玩家灵异伤害 × (鬼数 × 50%)</pre>
      */
-    public static final float INHERIT_MULTIPLIER = 0.5F;
+    public static final float INHERIT_PER_GHOST = 0.5F;
 
     /** 鬼种 → 该鬼贡献的灵异伤害（已乘比例） */
     private static final Map<String, Float> CACHE = new HashMap<>();
 
     private GhostSpiritPower() {
+    }
+
+    /**
+     * 这件物品的继承倍率（0.5 = 50%），按融合鬼数线性累加。
+     */
+    public static float inheritOf(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return 0.0F;
+        }
+        return ItemGhostHost.boundGhostTypes(stack).size() * INHERIT_PER_GHOST;
     }
 
     /**
@@ -79,7 +92,7 @@ public final class GhostSpiritPower {
             playerSpirit = com.xie.smfs.common.events.PlayerEvents.getSpiritAttribute(
                     player, com.xie.smfs.effect.SpiritAttributes.SPIRIT_DAMAGE);
         }
-        return base + playerSpirit * INHERIT_MULTIPLIER;
+        return base + playerSpirit * inheritOf(stack);
     }
 
     /**

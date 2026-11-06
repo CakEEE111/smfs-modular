@@ -72,10 +72,10 @@ public abstract class ItemTooltipMixin {
         // 灵异伤害：与本体灵异武器同一套模型 —— 基础值 + 玩家灵异伤害 × 继承倍率
         float base = com.example.smfsaddon.item.GhostSpiritPower.baseOf(stack);
         if (base > 0.0F) {
+            float inherit = com.example.smfsaddon.item.GhostSpiritPower.inheritOf(stack);
             lines.add(Text.literal("§8· §7基础灵异伤害 §c+" + String.format("%.1f", base)));
             lines.add(Text.literal("§8· §7继承倍率 §d+"
-                    + String.format("%.0f", com.example.smfsaddon.item.GhostSpiritPower.INHERIT_MULTIPLIER * 100)
-                    + ".0%"));
+                    + String.format("%.0f", inherit * 100) + ".0%"));
         }
 
         tooltip.add(Text.literal(""));
