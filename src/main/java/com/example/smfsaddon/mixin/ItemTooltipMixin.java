@@ -5,16 +5,14 @@ import com.example.smfsaddon.ghost.module.GhostModuleRegistry;
 import com.example.smfsaddon.item.GhostNames;
 import com.example.smfsaddon.item.ItemGhostHost;
 import net.minecraft.client.item.TooltipContext;
-import net.minecraft.item.Item;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -29,14 +27,27 @@ import java.util.List;
  * <p>名字解析在 {@link GhostNames}，技能面板复用同一套 —— 早先这里私有一份，
  * 面板那边却直接打原始 ID，同一个物品在词条里是「完整鬼影」、在面板里是
  * {@code complete_shadow_ghost}，看着像两个东西。
+ *
+ * <h2>为什么挂 {@code ItemStack#getTooltip}，而不是 {@code Item#appendTooltip}</h2>
+ *
+ * <p>后者只对「没有重写 appendTooltip 的物品」生效。盾牌（{@code ShieldItem}）、
+ * 旗帜这类重写了该方法<b>且不调 super</b> 的物品，注入点根本不会执行 ——
+ * 表现就是「替死鬼融进盾牌，词条什么都不显示」。
+ *
+ * <p>{@code ItemStack#getTooltip} 是所有物品的唯一出口，挂这里一劳永逸。
  */
-@Mixin(Item.class)
+@Mixin(ItemStack.class)
 public abstract class ItemTooltipMixin {
 
-    @Inject(method = "appendTooltip", at = @At("TAIL"))
-    private void smfsaddon$appendModuleEntries(ItemStack stack, @Nullable World world,
-                                               List<Text> tooltip, TooltipContext context,
-                                               CallbackInfo callbackInfo) {
+    @Inject(method = "getTooltip", at = @At("RETURN"))
+    private void smfsaddon$appendModuleEntries(PlayerEntity player, TooltipContext context,
+                                               CallbackInfoReturnable<List<Text>> callbackInfo) {
+        ItemStack stack = (ItemStack) (Object) this;
+        List<Text> tooltip = callbackInfo.getReturnValue();
+        if (tooltip == null) {
+            return;
+        }
+
         List<Identifier> modules = ItemGhostHost.moduleIds(stack);
         if (modules.isEmpty()) {
             return;
