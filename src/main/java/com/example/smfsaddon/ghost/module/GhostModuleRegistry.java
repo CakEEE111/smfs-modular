@@ -82,11 +82,12 @@ public final class GhostModuleRegistry {
         register(new com.example.smfsaddon.ghost.module.impl.ContainerGateModule());
         register(new com.example.smfsaddon.ghost.module.impl.BareArmorModule());
         register(new com.example.smfsaddon.ghost.module.impl.EatingGateModule());
-        register(new com.example.smfsaddon.ghost.module.impl.HungerGateModule());
-        register(new com.example.smfsaddon.ghost.module.impl.ThunderGateModule());
-        register(new com.example.smfsaddon.ghost.module.impl.MidnightGateModule());
         register(new com.example.smfsaddon.ghost.module.impl.ContinuousMoveModule());
-        register(new com.example.smfsaddon.ghost.module.impl.StillnessTimeoutModule());
+        register(new com.example.smfsaddon.ghost.module.impl.BurningGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.JumpGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.PlagueGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.TrashGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.MoneyGateModule());
         register(new com.example.smfsaddon.ghost.module.impl.DoorBaneModule());
         register(new com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule());
         register(new com.example.smfsaddon.ghost.module.impl.ScapegoatModule());
