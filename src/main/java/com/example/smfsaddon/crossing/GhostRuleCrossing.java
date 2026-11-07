@@ -88,7 +88,16 @@ public final class GhostRuleCrossing {
             com.example.smfsaddon.ghost.module.impl.CropGateModule.ID,
             com.example.smfsaddon.ghost.module.impl.MineralGateModule.ID,
             com.example.smfsaddon.ghost.module.impl.SneakGateModule.ID,
-            com.example.smfsaddon.ghost.module.impl.StationaryGateModule.ID
+            com.example.smfsaddon.ghost.module.impl.StationaryGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.DirectSightModule.ID,
+            com.example.smfsaddon.ghost.module.impl.ContainerGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.BareArmorModule.ID,
+            com.example.smfsaddon.ghost.module.impl.EatingGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.HungerGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.ThunderGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.MidnightGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.ContinuousMoveModule.ID,
+            com.example.smfsaddon.ghost.module.impl.StillnessTimeoutModule.ID
     );
 
     /**

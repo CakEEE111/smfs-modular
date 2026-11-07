@@ -1,5 +1,6 @@
 package com.example.smfsaddon.ghost.module.impl;
 
+import com.example.smfsaddon.ghost.module.GhostModuleContext;
 import com.xie.smfs.entity.GhostEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -22,7 +23,8 @@ public final class MineralGateModule extends EnvGateModule {
     }
 
     @Override
-    protected boolean test(PlayerEntity player, GhostEntity self, World world) {
+    protected boolean test(GhostModuleContext context, PlayerEntity player,
+                              GhostEntity self, World world) {
         for (ItemStack stack : player.getInventory().main) {
             if (stack.isEmpty()) {
                 continue;

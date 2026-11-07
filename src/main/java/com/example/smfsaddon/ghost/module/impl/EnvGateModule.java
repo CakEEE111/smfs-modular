@@ -72,11 +72,13 @@ abstract class EnvGateModule implements SpatialModule {
     /**
      * 目标玩家此刻是否满足这条规律。
      *
-     * @param player 被问的目标
-     * @param self   宿主鬼，可能为 {@code null}
-     * @param world  所在世界
+     * @param context 模块上下文，需要记状态时用 {@code context.state()}
+     * @param player  被问的目标
+     * @param self    宿主鬼，可能为 {@code null}
+     * @param world   所在世界
      */
-    protected abstract boolean test(PlayerEntity player, GhostEntity self, World world);
+    protected abstract boolean test(GhostModuleContext context, PlayerEntity player,
+                                    GhostEntity self, World world);
 
     /** 图鉴里那句"什么情况下会死" */
     protected abstract String condition();
@@ -110,7 +112,7 @@ abstract class EnvGateModule implements SpatialModule {
             if (world == null || player == null) {
                 return false;
             }
-            return test(player, context.ghost(), world);
+            return test(context, player, context.ghost(), world);
         }
 
         @Override

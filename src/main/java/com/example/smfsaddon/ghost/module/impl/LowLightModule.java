@@ -1,5 +1,6 @@
 package com.example.smfsaddon.ghost.module.impl;
 
+import com.example.smfsaddon.ghost.module.GhostModuleContext;
 import com.xie.smfs.entity.GhostEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
@@ -24,7 +25,8 @@ public final class LowLightModule extends EnvGateModule {
     }
 
     @Override
-    protected boolean test(PlayerEntity player, GhostEntity self, World world) {
+    protected boolean test(GhostModuleContext context, PlayerEntity player,
+                              GhostEntity self, World world) {
         return world.getLightLevel(LightType.BLOCK, player.getBlockPos()) <= DARK_THRESHOLD;
     }
 

@@ -1,5 +1,6 @@
 package com.example.smfsaddon.ghost.module.impl;
 
+import com.example.smfsaddon.ghost.module.GhostModuleContext;
 import com.xie.smfs.entity.GhostEntity;
 import net.minecraft.block.CropBlock;
 import net.minecraft.block.FarmlandBlock;
@@ -24,7 +25,8 @@ public final class CropGateModule extends EnvGateModule {
     }
 
     @Override
-    protected boolean test(PlayerEntity player, GhostEntity self, World world) {
+    protected boolean test(GhostModuleContext context, PlayerEntity player,
+                              GhostEntity self, World world) {
         if (player.getInventory().armor.get(0).getItem() == Items.GOLDEN_BOOTS) {
             return false;
         }
