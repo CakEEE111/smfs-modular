@@ -39,9 +39,9 @@ public class KakarotGhostEntity extends GhostEntity implements CustomGhostModelP
 
     public KakarotGhostEntity(EntityType<? extends GhostEntity> entityType, World world) {
         super(entityType, world,
-                true,    // 有鬼域
-                3,       // 鬼域等级
-                12.0D,   // 鬼域半径
+                false,   // 无鬼域：只保留袭击本身，不展开域
+                0,       // 鬼域等级
+                0.0D,    // 鬼域半径
                 'S',     // 恐怖等级
                 3200,    // 灵异强度
                 180,     // 灵异伤害
@@ -81,7 +81,14 @@ public class KakarotGhostEntity extends GhostEntity implements CustomGhostModelP
     public void tick() {
         super.tick();
 
-        if (this.getWorld().isClient() || !this.hasGhostDomain() || this.age % 3 != 0) {
+        if (this.getWorld().isClient()) {
+            return;
+        }
+
+        // 冲击判定不受粒子频率影响，单独走
+        fallbackRuleAttack();
+
+        if (this.age % 3 != 0) {
             return;
         }
         if (!(this.getWorld() instanceof ServerWorld world)) {
@@ -99,6 +106,64 @@ public class KakarotGhostEntity extends GhostEntity implements CustomGhostModelP
         // 每 4 次补一颗上升的电火花，增加"能量感"
         if (this.getGhostRandom().nextInt(4) == 0) {
             world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, x, y, z, 1, 0.05, 0.18, 0.05, 0.02);
+        }
+    }
+
+
+    // ---------------------------------------------------------------- 袭击
+
+    /** 无鬼域时的袭击半径（格） */
+    private static final double RULE_ATTACK_RANGE = 12.0D;
+
+    /** 判定间隔（tick）：一秒一次，够快也不至于每 tick 扫玩家 */
+    private static final int RULE_ATTACK_INTERVAL = 20;
+
+    /**
+     * 兜底袭击。
+     *
+     * <h2>为什么需要这个</h2>
+     *
+     * <p>本体那套"遍历域内玩家 → 问 shouldAttackPlayer → executeAttack"的循环，
+     * 整体挂在 {@code ghostDomainEnabled && hasGhostDomain} 这个前提之下。
+     * 这只鬼去掉了鬼域，那段循环就再也不会执行——它会变成一只站着不动的摆设。
+     *
+     * <p>所以这里补一条最小规则：12 格内、非创造/旁观、没被本体保护拦下，
+     * 就按本体自己的 {@link #executeAttack} 出手（伤害、冷却、灵异强度结算全部沿用本体）。
+     *
+     * <p>仍然尊重 {@code isSuppressed()} / {@code isDeadlocked()}：被压住或死锁的鬼
+     * 不该因为走了另一条路就还能打人。
+     */
+    private void fallbackRuleAttack() {
+        if (this.age % RULE_ATTACK_INTERVAL != 0) {
+            return;
+        }
+        if (this.isSuppressed() || this.isDeadlocked()) {
+            return;
+        }
+        if (!(this.getWorld() instanceof ServerWorld world)) {
+            return;
+        }
+
+        PlayerEntity nearest = null;
+        double best = Double.MAX_VALUE;
+        double rangeSq = RULE_ATTACK_RANGE * RULE_ATTACK_RANGE;
+        for (PlayerEntity player : world.getPlayers()) {
+            if (player.isCreative() || player.isSpectator()) {
+                continue;
+            }
+            if (this.isPlayerProtected(player)) {
+                continue;
+            }
+            double distanceSq = this.squaredDistanceTo(player);
+            if (distanceSq > rangeSq || distanceSq >= best) {
+                continue;
+            }
+            best = distanceSq;
+            nearest = player;
+        }
+
+        if (nearest != null && this.getTarget() != nearest) {
+            this.executeAttack(nearest, false);
         }
     }
 

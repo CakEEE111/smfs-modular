@@ -174,6 +174,11 @@ public class SuperSaiyanEffect extends StatusEffect {
 
         // 本体 HUD 与伤害公式读的都是 NBT，所以这一整组都要备份 + 放大
         NbtCompound spirit = PlayerEvents.getSpiritAttributes(player);
+        // 幂等：已经备份过说明正在变身中（效果被重复施加，比如 /effect give 或别的模组），
+        // 这次再乘一遍会把"已放大"的值当成原值存进去，还原后永久 ×50。
+        if (spirit.contains(BACKUP_KEY)) {
+            return;
+        }
         NbtCompound backup = new NbtCompound();
         for (String key : SCALED_KEYS) {
             double original = spirit.getDouble(key);

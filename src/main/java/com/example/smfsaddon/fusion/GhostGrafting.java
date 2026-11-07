@@ -113,12 +113,7 @@ public final class GhostGrafting {
         if (entityType == null) {
             return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false);
         }
-        Result result = tryGraft(target, graftPlanFor(entityType), player, entityType);
-        // 赌输了再补一刀灵异伤害：素材鬼最大灵异的 5%
-        if (!result.success()) {
-            FusionBacklash.spiritBacklash(player, entityType.toString());
-        }
-        return result;
+        return tryGraft(target, graftPlanFor(entityType), player, entityType);
     }
 
     public static Result tryGraft(ItemStack target, List<Identifier> moduleIds, PlayerEntity player) {
@@ -154,6 +149,11 @@ public final class GhostGrafting {
 
         if (!lucky) {
             FusionBacklash.apply(player, shortfall, required, FusionBacklash.FACTOR_FAILED);
+            // 只在"真的赌输"时补这一刀。原先放在 tryGraftForGhost 的 !success 分支，
+            // 会把"左槽为空 / 需求为 0"这类早退也算成失败，白扣灵异强度。
+            if (bindType != null) {
+                FusionBacklash.spiritBacklash(player, bindType.toString());
+            }
             return new Result(false, suppression, required, 0, chance, false);
         }
 
