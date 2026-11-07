@@ -168,12 +168,20 @@ public final class CrossingModule implements GhostOnlyModule {
             }
 
             for (Identifier typeId : types(context.data())) {
-                if (GhostRuleCrossing.ask(typeId, self, target)) {
-                    // 只表态允许，不表态否决：
-                    // 交错的意思是多一条杀你的理由，不是抹掉它自己的判断
-                    attackEvent.allow();
+                if (!GhostRuleCrossing.ask(typeId, self, target)) {
+                    continue;
+                }
+                // 命中之后才过冷却闸：冷却期内不表态（ABSTAIN），
+                // 让本体照常去问鬼自己的规律，原版的出手间隔就回来了。
+                // 注意闸门放在这里而不是循环之前 —— 否则"没命中"也会白吃 40 tick。
+                if (!GhostRuleCrossing.tryConsumeAllow(
+                        self.getUuid(), target.getUuid(), context.ticks())) {
                     return;
                 }
+                // 只表态允许，不表态否决：
+                // 交错的意思是多一条杀你的理由，不是抹掉它自己的判断
+                attackEvent.allow();
+                return;
             }
         }
     }

@@ -139,6 +139,32 @@ public final class GhostRuleCrossing {
     private static final int HOST_STATS_LIMIT = 1024;
 
     /**
+     * 交错出手冷却：同一只鬼对同一个玩家，最多每 40 tick 生效一次。
+     *
+     * <h2>为什么交错必须自带冷却</h2>
+     *
+     * <p>本体的出手节奏藏在<b>每只鬼自己的</b> {@code shouldAttackPlayer} 里
+     * （开头几乎都有一句 {@code if (attackCooldown > 0) return false}），
+     * 而 {@code resolveKillingRule} 是三态短路：
+     *
+     * <pre>
+     * ALLOW  → 直接返回 true，<b>不再问鬼自己的规律</b>
+     * DENY   → 直接返回 false
+     * ABSTAIN→ 才轮到 entity.shouldAttackPlayer(player)
+     * </pre>
+     *
+     * <p>交错一旦 allow，那道冷却闸就被整个跳过 —— 只要借来的规律此刻成立，
+     * 每个 tick 都会执行一次袭击（一秒 20 下）。所以这里自己补一道闸：
+     * 冷却期内<b>不表态</b>，让本体照常去问鬼自己的规律，原版节奏就回来了。
+     */
+    private static final int ALLOW_COOLDOWN_TICKS = 40;
+
+    /** 宿主 → 目标 → 上次允许的 tick */
+    private static final Map<UUID, Map<UUID, Long>> ALLOW_AT = new HashMap<>();
+
+    private static final int ALLOW_CACHE_LIMIT = 1024;
+
+    /**
      * 判定结果缓存：{@code (宿主, 目标, 类型) → [过期世界时间, 结果]}。
      *
      * <h2>为什么必须缓存</h2>
@@ -353,12 +379,34 @@ public final class GhostRuleCrossing {
         }
     }
 
+    /**
+     * 交错的总闸：这次允许能不能放行。
+     *
+     * @return {@code false} 表示冷却未到，调用方应当<b>不表态</b>（回到 ABSTAIN）
+     */
+    public static boolean tryConsumeAllow(UUID hostId, UUID targetId, long now) {
+        if (hostId == null || targetId == null) {
+            return true;
+        }
+        if (ALLOW_AT.size() > ALLOW_CACHE_LIMIT) {
+            ALLOW_AT.clear();
+        }
+        Map<UUID, Long> perTarget = ALLOW_AT.computeIfAbsent(hostId, ignored -> new HashMap<>());
+        Long last = perTarget.get(targetId);
+        if (last != null && now - last < ALLOW_COOLDOWN_TICKS) {
+            return false;
+        }
+        perTarget.put(targetId, now);
+        return true;
+    }
+
     /** 世界卸载时清空，别让 ServerWorld 被静态表攥住 */
     public static void clearCache() {
         SHADOWS.clear();
         UNAVAILABLE.clear();
         HOST_STATS.clear();
         ASK_CACHE.clear();
+        ALLOW_AT.clear();
         shadowWorld = null;
     }
 
