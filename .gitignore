@@ -26,6 +26,10 @@ reference/
 *.log
 *.hprof
 
+# 内部开发文档：只在本地留存，不发布
+# （想公开某一份时用 git add -f docs/某文件.md 单独加）
+docs/
+
 # 工具输出
 .workbuddy/
 

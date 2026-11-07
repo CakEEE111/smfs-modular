@@ -157,7 +157,7 @@ public class SmfsAddon implements ModInitializer {
 
         GhostUtils.registerAddonAbilityMapping("kakarot_ghost", List.of(
                 "代号：卡卡罗特",
-                "被动：气焰领域，变身时展开金色鬼域",
+                "被动：气焰领域，变身后体表常驻金色气焰",
                 "袭击：气焰冲击，命中附加金色爆发",
                 "",
                 "主动技能：龟派气功（C 键，消耗复苏度）",
