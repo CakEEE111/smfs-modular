@@ -15,8 +15,13 @@ public final class StationaryGateModule extends EnvGateModule {
 
     public static final Identifier ID = new Identifier("smfsaddon", "stationary_gate");
 
-    /** 位移低于这个平方值就当没动（大约 0.02 格） */
-    private static final double STILL_SQ = 4.0E-4D;
+    /**
+     * 水平速度低于这个平方值就当没动（约 0.07 格/tick）。
+     *
+     * <p>只看水平分量：{@code getVelocity()} 里带着重力，站在地上的玩家
+     * y 分量常常是 -0.078 左右，算进去会让"站着不动"永远不成立。
+     */
+    private static final double STILL_HORIZONTAL_SQ = 5.0E-3D;
 
     public StationaryGateModule() {
         super(ID, "静止必杀", "stationary_gate/motionless", 35.0D);
@@ -24,7 +29,8 @@ public final class StationaryGateModule extends EnvGateModule {
 
     @Override
     protected boolean test(PlayerEntity player, GhostEntity self, World world) {
-        return player.getVelocity().lengthSquared() < STILL_SQ;
+        return player.getVelocity().horizontalLengthSquared() < STILL_HORIZONTAL_SQ
+                && player.isOnGround();
     }
 
     @Override
