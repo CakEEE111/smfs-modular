@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "smfsaddon",
 	"version": "${version}",
-	"name": "神秘复苏 附属示例",
-	"description": "神秘复苏（smfs）附属模组开发模板：卡卡罗特厉鬼：实体、容器物品、双技能、气焰领域、掉落与成就。",
+	"name": "厉鬼模块化",
+	"description": "《神秘复苏》的非官方附属：把厉鬼装进任何物品。融合词条、技能继承、灵异伤害、灵异交错，以及一只会变身的卡卡罗特鬼。",
 	"authors": [
 		"your name"
 	],
