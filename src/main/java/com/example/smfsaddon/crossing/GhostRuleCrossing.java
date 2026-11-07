@@ -78,7 +78,17 @@ public final class GhostRuleCrossing {
     private static final List<Identifier> BORROWABLE_MECHANISMS = List.of(
             com.example.smfsaddon.ghost.module.impl.StepGhostModule.ID,
             com.example.smfsaddon.ghost.module.impl.SpatialPressureModule.ID,
-            com.example.smfsaddon.ghost.module.impl.DomainPresenceModule.ID
+            com.example.smfsaddon.ghost.module.impl.DomainPresenceModule.ID,
+            // 环境类：判定只读玩家侧状态，换成任何宿主都能生效
+            com.example.smfsaddon.ghost.module.impl.FacingAwayModule.ID,
+            com.example.smfsaddon.ghost.module.impl.LookUpModule.ID,
+            com.example.smfsaddon.ghost.module.impl.LookDownModule.ID,
+            com.example.smfsaddon.ghost.module.impl.WaterGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.LowLightModule.ID,
+            com.example.smfsaddon.ghost.module.impl.CropGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.MineralGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.SneakGateModule.ID,
+            com.example.smfsaddon.ghost.module.impl.StationaryGateModule.ID
     );
 
     /**

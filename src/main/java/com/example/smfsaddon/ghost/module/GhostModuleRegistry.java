@@ -68,6 +68,16 @@ public final class GhostModuleRegistry {
         register(new com.example.smfsaddon.ghost.module.impl.StepGhostModule());
         register(new com.example.smfsaddon.ghost.module.impl.DomainPresenceModule());
         register(new com.example.smfsaddon.ghost.module.impl.SpatialPressureModule());
+        // 环境类机制：判定只读玩家侧状态，换成任何宿主都能生效，供交错借用
+        register(new com.example.smfsaddon.ghost.module.impl.FacingAwayModule());
+        register(new com.example.smfsaddon.ghost.module.impl.LookUpModule());
+        register(new com.example.smfsaddon.ghost.module.impl.LookDownModule());
+        register(new com.example.smfsaddon.ghost.module.impl.WaterGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.LowLightModule());
+        register(new com.example.smfsaddon.ghost.module.impl.CropGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.MineralGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.SneakGateModule());
+        register(new com.example.smfsaddon.ghost.module.impl.StationaryGateModule());
         register(new com.example.smfsaddon.ghost.module.impl.DoorBaneModule());
         register(new com.example.smfsaddon.ghost.module.impl.NativeGhostRuleModule());
         register(new com.example.smfsaddon.ghost.module.impl.ScapegoatModule());
