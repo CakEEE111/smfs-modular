@@ -145,8 +145,9 @@ public final class HauntedBlocks {
     private static void rollChunk(ServerWorld world, HauntStore store,
                                   com.example.smfsaddon.config.AddonConfig.Haunt config,
                                   int chunkX, int chunkZ) {
-        // 每区块只处理一次：否则重复加载会反复掷骰
-        if (!store.markRolled(chunkKey(chunkX, chunkZ))) {
+        long chunkKey = chunkKey(chunkX, chunkZ);
+        // 已处理过的区块直接跳过（重复加载会反复掷骰）
+        if (store.isRolled(chunkKey)) {
             return;
         }
         // 初始配额优先：在出生点半径内的区块直接布置，不掷骰
@@ -163,6 +164,8 @@ public final class HauntedBlocks {
             }
         }
         if (!fromQuota && world.getRandom().nextDouble() >= config.newChunkChance) {
+            // 掷输了也算处理过，免得这块地被反复抽
+            store.markRolled(chunkKey);
             return;
         }
 
@@ -170,8 +173,11 @@ public final class HauntedBlocks {
         int z = chunkZ * 16 + world.getRandom().nextInt(16);
         BlockPos target = pickSpot(world, x, z, config);
         if (target == null) {
+            // 这一列不合适（海面、悬崖、地形没就绪）—— 不标记，
+            // 下次这块地重新加载时再试一次
             return;
         }
+        store.markRolled(chunkKey);
         List<Identifier> pool = com.example.smfsaddon.crossing.GhostRuleCrossing.ghostTypeIds(world);
         if (pool.isEmpty()) {
             return;
@@ -235,13 +241,11 @@ public final class HauntedBlocks {
                                      com.example.smfsaddon.config.AddonConfig.Haunt config) {
         int chunkX = x >> 4;
         int chunkZ = z >> 4;
-        // 绝不主动加载/生成区块。
-        // 让区块生成的是别人（玩家的探索），我们只在已加载的区块里取高度 ——
-        // 否则会把别人的世界生成特征拖进我们的调用栈，那些越界写方块的附属
-        // 就会成片报 "Detected setBlock in a far chunk"。
-        if (!world.isChunkLoaded(chunkX, chunkZ)) {
-            return null;
-        }
+        // 这里不再调 world.getChunk / isChunkLoaded：
+        // 前者会主动生成区块（把别人的世界生成特征拖进我们的调用栈），
+        // 后者在 CHUNK_LOAD 事件里可能还没登记为"已加载"，会把所有放置都拦死
+        // —— 实测就是世界共 0 个、配额一直挂着 8。
+        // 我们只在事件给的区块里取高度，需要的信息它都有。
 
         int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
         // 高度图在「区块还没生成完」时会返回谷底，那会让我们把鬼埋进基岩层。

@@ -77,6 +77,10 @@ public final class HauntStore extends PersistentState {
         return haunts.size();
     }
 
+    public boolean isRolled(long chunkKey) {
+        return rolled.contains(chunkKey);
+    }
+
     /**
      * 标记这个区块处理过。
      *
