@@ -77,11 +77,6 @@ public class SmfsAddon implements ModInitializer {
             com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid());
             com.example.smfsaddon.item.FusedGhostSlots.forget(handler.getPlayer().getUuid());
         });
-        // 鬼方块：区块加载时掷骰（真正写入推迟到世界 tick，避免生成线程碰存档）
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register(
-                (world, chunk) -> com.example.smfsaddon.haunt.HauntedBlocks
-                        .onChunkLoad(world, chunk.getPos().x, chunk.getPos().z));
-
         // 鬼方块：判定与异象
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(world -> {
             com.example.smfsaddon.haunt.HauntedBlocks.tick(world);
@@ -103,7 +98,13 @@ public class SmfsAddon implements ModInitializer {
                 });
         // 开服就先建好交错候选池，避免第一只鬼生成时卡一下
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(
-                server -> com.example.smfsaddon.crossing.GhostRuleCrossing.warmUp(server.getOverworld()));
+                server -> {
+                    com.example.smfsaddon.crossing.GhostRuleCrossing.warmUp(server.getOverworld());
+                    // 鬼方块只在世界第一次被接管时布置，主世界与下界/末地各自一次
+                    for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+                        com.example.smfsaddon.haunt.HauntedBlocks.initializeWorld(world);
+                    }
+                });
 
         if (GhostAPI.isRegistered() && TameableItemAPI.isRegistered()) {
             registerContent();

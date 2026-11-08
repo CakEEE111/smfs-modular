@@ -70,6 +70,14 @@ public final class AddonConfigScreen extends Screen {
                 value -> config.escape.stepChance = (float) value, 0.05D, 0.0D, 1.0D));
         rows.add(Row.toggle("失败复苏", () -> config.escape.enabled,
                 value -> config.escape.enabled = value));
+
+        // 鬼方块
+        rows.add(Row.toggle("野外鬼方块", () -> config.haunt.enabled,
+                value -> config.haunt.enabled = value));
+        rows.add(Row.integer("野外数量", () -> config.haunt.initialCount,
+                value -> config.haunt.initialCount = (int) value, 1, 0, 64));
+        rows.add(Row.integer("布置半径", () -> config.haunt.initialRadius,
+                value -> config.haunt.initialRadius = (int) value, 64, 32, 2048));
     }
 
     @Override
@@ -160,9 +168,11 @@ public final class AddonConfigScreen extends Screen {
         private final double max;
         private final boolean integer;
         private final boolean toggle;
+        private final boolean percent;
 
         private Row(String label, DoubleSupplier getter, DoubleConsumer setter,
-                    double step, double min, double max, boolean integer, boolean toggle) {
+                    double step, double min, double max, boolean integer, boolean toggle,
+                    boolean percent) {
             this.label = label;
             this.getter = getter;
             this.setter = setter;
@@ -171,21 +181,27 @@ public final class AddonConfigScreen extends Screen {
             this.max = max;
             this.integer = integer;
             this.toggle = toggle;
+            this.percent = percent;
         }
 
         static Row integer(String label, DoubleSupplier getter, DoubleConsumer setter,
                            double step, double min, double max) {
-            return new Row(label, getter, setter, step, min, max, true, false);
+            return new Row(label, getter, setter, step, min, max, true, false, false);
         }
 
         static Row decimal(String label, DoubleSupplier getter, DoubleConsumer setter,
                            double step, double min, double max) {
-            return new Row(label, getter, setter, step, min, max, false, false);
+            return new Row(label, getter, setter, step, min, max, false, false, false);
+        }
+
+        /** 以百分比展示，步进 1% */
+        static Row percent(String label, DoubleSupplier getter, DoubleConsumer setter) {
+            return new Row(label, getter, setter, 0.01D, 0.0D, 1.0D, false, false, true);
         }
 
         static Row toggle(String label, BooleanSupplier getter, Consumer<Boolean> setter) {
             return new Row(label, () -> getter.getAsBoolean() ? 1.0D : 0.0D,
-                    value -> setter.accept(value > 0.5D), 1.0D, 0, 1, true, true);
+                    value -> setter.accept(value > 0.5D), 1.0D, 0, 1, true, true, false);
         }
 
         String text() {
@@ -193,6 +209,9 @@ public final class AddonConfigScreen extends Screen {
                 return getter.getAsDouble() > 0.5D ? "开" : "关";
             }
             double value = getter.getAsDouble();
+            if (percent) {
+                return Math.round(value * 100.0D) + "%";
+            }
             return integer ? String.valueOf(Math.round(value)) : String.format("%.2f", value);
         }
 

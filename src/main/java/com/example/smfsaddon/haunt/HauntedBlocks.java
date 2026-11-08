@@ -88,28 +88,104 @@ public final class HauntedBlocks {
     /** 异象可见范围（只给"身上有灵异物品"的人） */
     private static final double SIGHT_RADIUS = 8.0D;
 
+    // ---------------------------------------------------------------- 世界生成
+
     /**
-     * 待掷骰的区块。
+     * 世界第一次被本模组接管时，在出生点附近布置若干鬼方块。
      *
-     * <p>区块加载可能在别的线程上触发，直接写 PersistentState 不安全，
-     * 所以先入队，统一在世界 tick 里处理。
+     * <h2>为什么只在世界创建时做</h2>
+     *
+     * <p>按区块概率动态生成会让存档里的数据随探索无限增长，而且老存档会被
+     * "事后补种" —— 玩家自己基地的地下突然冒出鬼，很难接受。
+     *
+     * <p>改成一次性：每个世界布置固定数量，位置由世界种子决定（同一个种子
+     * 每次开出来一样，方便复现）。之后无论玩家探索多远，都不会再自动增加 ——
+     * 想加只能靠 {@code /ghostmodules haunt}。
      */
-    private static final Map<ServerWorld, java.util.Queue<Long>> PENDING =
-            new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** 每 tick 最多处理几个区块，避免一次进图时卡顿 */
-    private static final int ROLL_BUDGET = 16;
-
-    private HauntedBlocks() {
-    }
-
-    /** 区块加载时登记，真正的判定在 tick 里做 */
-    public static void onChunkLoad(ServerWorld world, int chunkX, int chunkZ) {
-        if (!com.example.smfsaddon.config.AddonConfig.get().haunt.enabled) {
+    public static void initializeWorld(ServerWorld world) {
+        com.example.smfsaddon.config.AddonConfig.Haunt config =
+                com.example.smfsaddon.config.AddonConfig.get().haunt;
+        if (!config.enabled) {
             return;
         }
-        PENDING.computeIfAbsent(world, ignored -> new java.util.concurrent.ConcurrentLinkedQueue<>())
-                .add(chunkKey(chunkX, chunkZ));
+
+        HauntStore store = HauntStore.of(world);
+        if (store.isInitialized()) {
+            return;
+        }
+        store.markInitialized();
+        if (config.initialCount <= 0) {
+            return;
+        }
+
+        BlockPos spawn = world.getSpawnPos();
+        java.util.Random random = new java.util.Random(world.getSeed() ^ 0x5DEECE66DL);
+        int placed = 0;
+        int attempts = 0;
+        int maxAttempts = Math.max(32, config.initialCount * 40);
+
+        while (placed < config.initialCount && attempts < maxAttempts) {
+            attempts++;
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            int minDistance = Math.min(config.minSpawnDistance, config.initialRadius);
+            double distance = minDistance
+                    + random.nextDouble() * Math.max(1, config.initialRadius - minDistance);
+            int x = spawn.getX() + (int) Math.round(Math.cos(angle) * distance);
+            int z = spawn.getZ() + (int) Math.round(Math.sin(angle) * distance);
+
+            BlockPos target = pickSpot(world, x, z, config);
+            if (target == null) {
+                continue;
+            }
+            List<Identifier> pool = com.example.smfsaddon.crossing.GhostRuleCrossing
+                    .ghostTypeIds(world);
+            if (pool.isEmpty()) {
+                return;
+            }
+            Identifier ghostType = pool.get(random.nextInt(pool.size()));
+            store.put(target, new HauntStore.Entry(ghostType));
+            placed++;
+            com.example.smfsaddon.SmfsAddon.LOGGER.info(
+                    "[smfsaddon] 野鬼方块：{} 埋在 {}（{}）", ghostType, target.toShortString(),
+                    world.getRegistryKey().getValue());
+        }
+
+        com.example.smfsaddon.SmfsAddon.LOGGER.info(
+                "[smfsaddon] 世界初始化完成，布置 {} 个鬼方块（尝试 {} 次）", placed, attempts);
+    }
+
+    /**
+     * 在某一列找落点：地表往下 1~4 格，必须是实心、非流体。
+     *
+     * @return {@code null} 表示这一列不合适
+     */
+    private static BlockPos pickSpot(ServerWorld world, int x, int z,
+                                     com.example.smfsaddon.config.AddonConfig.Haunt config) {
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        // 需要真实地形才能取表面高度，这里同步生成区块（只在世界创建时发生一次）
+        world.getChunk(chunkX, chunkZ);
+
+        int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if (top <= world.getBottomY() + 1) {
+            return null;
+        }
+        BlockPos surface = new BlockPos(x, top - 1, z);
+        var surfaceState = world.getBlockState(surface);
+        if (surfaceState.isAir() || !surfaceState.isSolidBlock(world, surface)
+                || !surfaceState.getFluidState().isEmpty()) {
+            return null;
+        }
+
+        int depth = config.minDepth + world.getRandom().nextInt(
+                Math.max(1, config.maxDepth - config.minDepth + 1));
+        BlockPos target = surface.down(depth);
+        var targetState = world.getBlockState(target);
+        if (targetState.isAir() || !targetState.isSolidBlock(world, target)
+                || !targetState.getFluidState().isEmpty()) {
+            return null;
+        }
+        return target;
     }
 
     // ---------------------------------------------------------------- 制造
@@ -144,8 +220,6 @@ public final class HauntedBlocks {
         if (now % 10L != 0L) {
             return;
         }
-
-        processPending(world);
 
         HauntStore store = HauntStore.of(world);
         if (store.haunts().isEmpty()) {
@@ -194,98 +268,6 @@ public final class HauntedBlocks {
         for (BlockPos pos : drop) {
             store.remove(pos);
         }
-    }
-
-    /** 处理排队中的区块，每轮最多 {@link #ROLL_BUDGET} 个 */
-    private static void processPending(ServerWorld world) {
-        java.util.Queue<Long> queue = PENDING.get(world);
-        if (queue == null) {
-            return;
-        }
-        for (int i = 0; i < ROLL_BUDGET; i++) {
-            Long key = queue.poll();
-            if (key == null) {
-                return;
-            }
-            try {
-                rollChunk(world, (int) (key >> 32), (int) (long) key);
-            } catch (RuntimeException exception) {
-                com.example.smfsaddon.SmfsAddon.LOGGER.warn(
-                        "[smfsaddon] 鬼方块生成失败：{}", exception.toString());
-            }
-        }
-    }
-
-    /**
-     * 给一个区块掷骰：5%（可配）的概率埋一个鬼方块。
-     *
-     * <h2>几个刻意的限制</h2>
-     *
-     * <ul>
-     *   <li><b>只在地表</b>：取世界表面往下 1~4 格，且必须是实心、非流体 ——
-     *       否则会埋在树梢、水里或半空；</li>
-     *   <li><b>避开出生点</b>：玩家一进图脚下就有鬼，第一次体验就毁了；</li>
-     *   <li><b>每区块只掷一次</b>：掷过就记档，重复加载不会重复生成。</li>
-     * </ul>
-     */
-    private static void rollChunk(ServerWorld world, int chunkX, int chunkZ) {
-        com.example.smfsaddon.config.AddonConfig.Haunt config =
-                com.example.smfsaddon.config.AddonConfig.get().haunt;
-        if (!config.enabled) {
-            return;
-        }
-
-        HauntStore store = HauntStore.of(world);
-        long key = chunkKey(chunkX, chunkZ);
-        if (!store.markRolled(key)) {
-            return;
-        }
-
-        // 出生点附近不生成
-        BlockPos spawn = world.getSpawnPos();
-        double spawnDistanceSq = spawn.getSquaredDistance(
-                chunkX * 16 + 8, spawn.getY(), chunkZ * 16 + 8);
-        if (spawnDistanceSq < (double) config.minSpawnDistance * config.minSpawnDistance) {
-            return;
-        }
-
-        if (world.getRandom().nextDouble() >= config.chancePerChunk) {
-            return;
-        }
-
-        int x = chunkX * 16 + world.getRandom().nextInt(16);
-        int z = chunkZ * 16 + world.getRandom().nextInt(16);
-        int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (top <= world.getBottomY() + 1) {
-            return;
-        }
-        BlockPos surface = new BlockPos(x, top - 1, z);
-        var surfaceState = world.getBlockState(surface);
-        if (surfaceState.isAir() || !surfaceState.isSolidBlock(world, surface)
-                || !surfaceState.getFluidState().isEmpty()) {
-            return;
-        }
-
-        int depth = config.minDepth + world.getRandom().nextInt(
-                Math.max(1, config.maxDepth - config.minDepth + 1));
-        BlockPos target = surface.down(depth);
-        var targetState = world.getBlockState(target);
-        if (targetState.isAir() || !targetState.isSolidBlock(world, target)
-                || !targetState.getFluidState().isEmpty()) {
-            return;
-        }
-
-        List<Identifier> pool = com.example.smfsaddon.crossing.GhostRuleCrossing
-                .ghostTypeIds(world);
-        if (pool.isEmpty()) {
-            return;
-        }
-        Identifier ghostType = pool.get(world.getRandom().nextInt(pool.size()));
-
-        store.put(target, new HauntStore.Entry(ghostType));
-        com.example.smfsaddon.SmfsAddon.LOGGER.info(
-                "[smfsaddon] 野鬼方块：{} 埋在 {}（{}）", ghostType, target.toShortString(),
-                world.getRegistryKey().getValue());
     }
 
     private static long chunkKey(int chunkX, int chunkZ) {
@@ -500,6 +482,6 @@ public final class HauntedBlocks {
 
     /** 目前没有需要清空的静态缓存，保留方法给上层统一调用 */
     public static void clearCache() {
-        PENDING.clear();
+        // 目前不持有跨世界引用
     }
 }
