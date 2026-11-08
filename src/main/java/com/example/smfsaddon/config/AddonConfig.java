@@ -45,6 +45,7 @@ public final class AddonConfig {
     public Crossing crossing = new Crossing();
     public Fusion fusion = new Fusion();
     public Escape escape = new Escape();
+    public Haunt haunt = new Haunt();
 
     /** 灵异交错 */
     public static final class Crossing {
@@ -102,6 +103,22 @@ public final class AddonConfig {
 
         /** 总开关：关掉之后失败不再有复苏风险 */
         public boolean enabled = true;
+    }
+
+    /** 鬼方块的野外生成 */
+    public static final class Haunt {
+        /** 总开关 */
+        public boolean enabled = true;
+
+        /** 每个区块生成的概率 */
+        public double chancePerChunk = 0.05D;
+
+        /** 离世界出生点多近不生成（格） */
+        public int minSpawnDistance = 128;
+
+        /** 埋在地表下的深度范围 */
+        public int minDepth = 1;
+        public int maxDepth = 4;
     }
 
     private AddonConfig() {
@@ -183,6 +200,11 @@ public final class AddonConfig {
 
         escape.baseChance = clamp(escape.baseChance, 0.0F, 1.0F);
         escape.stepChance = clamp(escape.stepChance, 0.0F, 1.0F);
+
+        haunt.chancePerChunk = clamp(haunt.chancePerChunk, 0.0D, 1.0D);
+        haunt.minSpawnDistance = clamp(haunt.minSpawnDistance, 0, 10000);
+        haunt.minDepth = clamp(haunt.minDepth, 0, 16);
+        haunt.maxDepth = clamp(haunt.maxDepth, haunt.minDepth, 16);
     }
 
     private static int clamp(int value, int min, int max) {
@@ -212,6 +234,9 @@ public final class AddonConfig {
         }
         if (escape == null) {
             escape = new Escape();
+        }
+        if (haunt == null) {
+            haunt = new Haunt();
         }
     }
 
