@@ -38,6 +38,34 @@ public final class GhostModulesCommand {
 
     private static final double SEARCH_RADIUS = 8.0D;
     /**
+     * 列出附近的鬼方块。默认查 128 格。
+     */
+    private static int listHaunts(ServerCommandSource source, double radius) {
+        if (!(source.getWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
+            return 0;
+        }
+        var center = source.getPosition();
+        var found = com.example.smfsaddon.haunt.HauntedBlocks
+                .query(serverWorld, center, radius, 10);
+
+        if (found.isEmpty()) {
+            source.sendFeedback(() -> Text.literal("§7" + (int) radius + " 格内没有鬼方块"), false);
+            return 0;
+        }
+
+        source.sendFeedback(() -> Text.literal("§6附近的鬼方块 §8（" + (int) radius + " 格内）"), false);
+        int index = 1;
+        for (var near : found) {
+            String line = "§8[" + index++ + "] §f" + near.pos().toShortString()
+                    + " §8| §b" + near.ghostType()
+                    + " §8| §7复苏 " + near.revival() + "/30"
+                    + " §8| §7" + String.format("%.1f", near.distance()) + " 格";
+            source.sendFeedback(() -> Text.literal(line), false);
+        }
+        return found.size();
+    }
+
+    /**
      * 把玩家看着的方块（没有目标就用脚下）变成鬼方块。
      */
     private static int haunt(ServerCommandSource source, Identifier ghostType) {
@@ -216,6 +244,14 @@ public final class GhostModulesCommand {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return detachNearest(context.getSource(), id);
                                         })))
+                        .then(CommandManager.literal("haunts")
+                                .executes(context -> listHaunts(context.getSource(), 128.0D))
+                                .then(CommandManager.argument("radius",
+                                                com.mojang.brigadier.arguments.DoubleArgumentType
+                                                        .doubleArg(8.0D, 4096.0D))
+                                        .executes(context -> listHaunts(context.getSource(),
+                                                com.mojang.brigadier.arguments.DoubleArgumentType
+                                                        .getDouble(context, "radius")))))
                         .then(CommandManager.literal("haunt")
                                 .then(CommandManager.argument("type", IdentifierArgumentType.identifier())
                                         .suggests(ENTITY_SUGGESTIONS)

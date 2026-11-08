@@ -569,6 +569,40 @@ public final class HauntedBlocks {
         return ghost;
     }
 
+    /**
+     * 查附近有哪些鬼方块，按距离排序。
+     *
+     * <p>给 {@code /ghostmodules haunts} 用：玩家听着声音却找不到东西时，
+     * 至少能确认"它在哪、里面是什么"。
+     */
+    public static List<Near> query(ServerWorld world, net.minecraft.util.math.Vec3d center,
+                                   double radius, int limit) {
+        HauntStore store = HauntStore.of(world);
+        List<Near> found = new ArrayList<>();
+        double radiusSq = radius * radius;
+
+        for (Map.Entry<BlockPos, HauntStore.Entry> item : store.haunts().entrySet()) {
+            BlockPos pos = item.getKey();
+            double distanceSq = center.squaredDistanceTo(
+                    pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+            if (distanceSq > radiusSq) {
+                continue;
+            }
+            HauntStore.Entry entry = item.getValue();
+            found.add(new Near(pos, entry.ghostType, entry.revival, Math.sqrt(distanceSq)));
+        }
+
+        found.sort(java.util.Comparator.comparingDouble(Near::distance));
+        if (found.size() > limit) {
+            return new ArrayList<>(found.subList(0, limit));
+        }
+        return found;
+    }
+
+    /** 查询结果的一行 */
+    public record Near(BlockPos pos, Identifier ghostType, int revival, double distance) {
+    }
+
     /** 目前没有需要清空的静态缓存，保留方法给上层统一调用 */
     public static void clearCache() {
         PENDING.clear();
