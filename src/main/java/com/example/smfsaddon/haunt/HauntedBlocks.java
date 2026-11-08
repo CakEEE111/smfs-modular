@@ -54,6 +54,15 @@ public final class HauntedBlocks {
     /** 判定间隔：60 tick = 3 秒 */
     private static final long JUDGE_INTERVAL = 60L;
 
+    /**
+     * 预警音的重复间隔：200 tick = 10 秒。
+     *
+     * <p>早先是"进范围只响一次"，结果很坑：玩家在方块旁边敲命令创建它时，
+     * 第一个 tick 就已经在范围内，音效当场播掉，之后再也不响 —— 看起来像"只有打碎才有声音"。
+     * 改成周期重复，既解决这个错觉，也让"附近有东西"这件事持续被感知。
+     */
+    private static final long WARN_INTERVAL = 200L;
+
     /** 每次判定通过涨多少复苏 */
     private static final int REVIVAL_PER_HIT = 3;
 
@@ -115,19 +124,25 @@ public final class HauntedBlocks {
 
             PlayerEntity near = nearestPlayer(world, pos);
             if (near == null) {
-                // 没人时复位，下次进来重新预警
-                if (entry.warned) {
-                    entry.warned = false;
+                // 没人时复位，下次进来立刻重新预警
+                if (entry.warnedAt != 0L) {
+                    entry.warnedAt = 0L;
                     store.markDirty();
                 }
                 continue;
             }
 
-            if (!entry.warned) {
-                entry.warned = true;
+            // 预警音：进范围就响，之后每 10 秒补一次
+            if (now - entry.warnedAt >= WARN_INTERVAL) {
+                entry.warnedAt = now;
                 store.markDirty();
                 world.playSound(null, pos, SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE,
                         SoundCategory.HOSTILE, 1.0F, 0.8F + world.getRandom().nextFloat() * 0.4F);
+            }
+
+            if (near.isCreative() || near.isSpectator()) {
+                // 创造/旁观只给音效和粒子，不参与判定
+                continue;
             }
 
             if (now - entry.judgedAt < JUDGE_INTERVAL) {
@@ -272,7 +287,7 @@ public final class HauntedBlocks {
         PlayerEntity best = null;
         double bestDistance = TRIGGER_RADIUS * TRIGGER_RADIUS;
         for (ServerPlayerEntity player : world.getPlayers()) {
-            if (player.isSpectator() || player.isCreative()) {
+            if (player.isSpectator()) {
                 continue;
             }
             double distance = player.squaredDistanceTo(

@@ -66,7 +66,8 @@ public final class HauntStore extends PersistentState {
         public final Identifier ghostType;
         public long judgedAt;
         public int revival;
-        public boolean warned;
+        /** 上次预警的 tick；0 表示当前范围内没人 */
+        public long warnedAt;
 
         public Entry(Identifier ghostType) {
             this.ghostType = ghostType;
@@ -77,7 +78,7 @@ public final class HauntStore extends PersistentState {
             nbt.putString("Type", ghostType.toString());
             nbt.putLong("JudgedAt", judgedAt);
             nbt.putInt("Revival", revival);
-            nbt.putBoolean("Warned", warned);
+            nbt.putLong("WarnedAt", warnedAt);
             return nbt;
         }
 
@@ -89,7 +90,7 @@ public final class HauntStore extends PersistentState {
             Entry entry = new Entry(type);
             entry.judgedAt = nbt.getLong("JudgedAt");
             entry.revival = nbt.getInt("Revival");
-            entry.warned = nbt.getBoolean("Warned");
+            entry.warnedAt = nbt.getLong("WarnedAt");
             return entry;
         }
     }
