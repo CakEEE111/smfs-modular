@@ -79,6 +79,19 @@ public final class HauntedBlocks {
      */
     private static final long WARN_INTERVAL = 200L;
 
+    /** 诊断用：本次会话尝试/失败次数与最后一次拒绝原因 */
+    private static int attempts;
+    private static int failures;
+    private static String lastReject = "还没尝试过";
+
+    public static String debugSummary() {
+        return "尝试 " + attempts + " 次，失败 " + failures + " 次，最后原因：" + lastReject;
+    }
+
+    private static void reject(String reason) {
+        lastReject = reason;
+    }
+
     /** 每次判定通过涨多少复苏 */
     private static final int REVIVAL_PER_HIT = 3;
 
@@ -171,8 +184,16 @@ public final class HauntedBlocks {
 
         int x = chunkX * 16 + world.getRandom().nextInt(16);
         int z = chunkZ * 16 + world.getRandom().nextInt(16);
+        attempts++;
+        lastReject = "未进入判定";
         BlockPos target = pickSpot(world, x, z, config);
         if (target == null) {
+            failures++;
+            if (failures <= 5) {
+                com.example.smfsaddon.SmfsAddon.LOGGER.info(
+                        "[smfsaddon] 鬼方块放置失败（{}）：区块 {},{} 列 {},{}",
+                        lastReject, chunkX, chunkZ, x, z);
+            }
             // 这一列不合适（海面、悬崖、地形没就绪）—— 不标记，
             // 下次这块地重新加载时再试一次
             return;
@@ -248,19 +269,22 @@ public final class HauntedBlocks {
         // 我们只在事件给的区块里取高度，需要的信息它都有。
 
         int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if (top <= world.getBottomY() + 4) {
+            reject("高度图给出谷底 y=" + top + "（区块可能还没就绪）");
+            return null;
+        }
         // 高度图在「区块还没生成完」时会返回谷底，那会让我们把鬼埋进基岩层。
         // 两条防线：高度必须离开谷底一点，且表面方块<b>上面必须是空气</b> ——
         // 真正的地表上方永远是空的，基岩/石头里面不是。
-        if (top <= world.getBottomY() + 4) {
-            return null;
-        }
         BlockPos surface = new BlockPos(x, top - 1, z);
         var surfaceState = world.getBlockState(surface);
         if (surfaceState.isAir() || !surfaceState.isSolidBlock(world, surface)
                 || !surfaceState.getFluidState().isEmpty()) {
+            reject("地表不是实心方块：" + surfaceState.getBlock() + " @y=" + surface.getY());
             return null;
         }
         if (!world.getBlockState(surface.up()).isAir()) {
+            reject("地表上方不是空气（" + world.getBlockState(surface.up()).getBlock() + "）");
             return null;
         }
 
@@ -271,11 +295,13 @@ public final class HauntedBlocks {
         // 高度图偶尔会在区块刚生成完时给出谷底值（实测出现过 y=-63 的落点），
         // 那一列的"地表"其实是基岩上方的深板岩，上面也确实有空气 —— 前两条判据拦不住。
         if (target.getY() < world.getBottomY() + 8) {
+            reject("埋点太靠底 y=" + target.getY());
             return null;
         }
         var targetState = world.getBlockState(target);
         if (targetState.isAir() || !targetState.isSolidBlock(world, target)
                 || !targetState.getFluidState().isEmpty()) {
+            reject("埋点不是实心：" + targetState.getBlock() + " @y=" + target.getY());
             return null;
         }
         return target;

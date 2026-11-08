@@ -56,6 +56,8 @@ public final class GhostModulesCommand {
                             + " | 剩余初始配额 " + store.remainingInitial()
                             + " | 新区块概率 " + config.newChunkChance
                             + " | 开关 " + (config.enabled ? "开" : "关")), false);
+            source.sendFeedback(() -> Text.literal(
+                    "§8" + com.example.smfsaddon.haunt.HauntedBlocks.debugSummary()), false);
             return 0;
         }
 
