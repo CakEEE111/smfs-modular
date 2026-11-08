@@ -458,6 +458,24 @@ public final class GhostRuleCrossing {
      * <p>先按名字粗筛再实际试造 —— 全量试造几百个实体太浪费。
      * 粗筛规则：路径以 {@code _ghost} 结尾、以 {@code ghost_} 开头，或命名空间是 smfs。
      */
+    /**
+     * 该命名空间对应的模组是否声明了 smfs 依赖。
+     *
+     * <p>附属的命名空间不一定等于模组 id，但绝大多数是一致的；
+     * 对不上时只是少收几个候选，不会出错。
+     */
+    private static boolean namespaceDependsOnSmfs(String namespace) {
+        try {
+            return net.fabricmc.loader.api.FabricLoader.getInstance()
+                    .getModContainer(namespace)
+                    .map(container -> container.getMetadata().getDependencies().stream()
+                            .anyMatch(dependency -> "smfs".equals(dependency.getModId())))
+                    .orElse(false);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     private static List<Identifier> pool(World world) {
         if (pool != null) {
             return pool;
@@ -465,9 +483,18 @@ public final class GhostRuleCrossing {
         List<Identifier> list = new ArrayList<>();
         for (Identifier id : Registries.ENTITY_TYPE.getIds()) {
             String path = id.getPath();
-            boolean likely = path.endsWith("_ghost")
-                    || path.startsWith("ghost_")
-                    || "smfs".equals(id.getNamespace());
+            // 判据放了三层，从便宜到贵：
+            //   1) 名字里带 ghost —— 覆盖 *_ghost / ghost_* / 各种驼峰写法
+            //   2) 本体自己的命名空间
+            //   3) 该命名空间对应的模组声明了 smfs 依赖 —— 覆盖"给鬼起了个
+            //      跟 ghost 无关的名字"的附属（比如 otheraddon:weeping_woman）
+            //
+            // 早先只认「_ghost 结尾 / ghost_ 开头」，第三种鬼会被整只漏掉：
+            // 它自己该拿的交错不会少，但别的鬼永远借不到它 —— 玩家会觉得
+            // "这明明也是鬼，怎么从没被借过"。
+            boolean likely = path.contains("ghost")
+                    || "smfs".equals(id.getNamespace())
+                    || namespaceDependsOnSmfs(id.getNamespace());
             if (!likely) {
                 continue;
             }
@@ -499,6 +526,7 @@ public final class GhostRuleCrossing {
             }
         }
         pool = List.copyOf(list);
+        SmfsAddon.LOGGER.info("[smfsaddon] 交错候选池就绪：{} 只鬼可被借用", pool.size());
         SmfsAddon.LOGGER.info("[smfsaddon] 交错候选池：{} 种鬼", pool.size());
         return pool;
     }
