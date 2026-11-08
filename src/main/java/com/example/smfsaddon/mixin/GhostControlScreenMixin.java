@@ -36,9 +36,6 @@ public abstract class GhostControlScreenMixin
     private static final int SMFSADDON_Y = 183;
     private static final int SMFSADDON_SIZE = 25;
 
-    /** 配置入口，紧挨着「装置」往下 35（本体按钮间距也是 35） */
-    private static final int CONFIG_X = 200;
-    private static final int CONFIG_Y = 218;
 
     public GhostControlScreenMixin(GhostControlScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
@@ -56,21 +53,6 @@ public abstract class GhostControlScreenMixin
         context.drawBorder(left, top, SMFSADDON_SIZE, SMFSADDON_SIZE,
                 hovered ? 0xFFFFFFFF : 0xFF555555);
 
-        // 配置入口：手绘一个同样的方块按钮
-        int configLeft = this.x + CONFIG_X;
-        int configTop = this.y + CONFIG_Y;
-        boolean configHovered = isInside(mouseX, mouseY, configLeft, configTop);
-        context.fill(configLeft, configTop, configLeft + SMFSADDON_SIZE, configTop + SMFSADDON_SIZE,
-                configHovered ? 0xFF2A2A3A : 0xFF1A1A22);
-        context.drawBorder(configLeft, configTop, SMFSADDON_SIZE, SMFSADDON_SIZE,
-                configHovered ? 0xFFFFFFFF : 0xFF555555);
-        String configLabel = "配置";
-        int configWidth = this.textRenderer.getWidth(configLabel);
-        context.drawText(this.textRenderer, configLabel,
-                configLeft + (SMFSADDON_SIZE - configWidth) / 2,
-                configTop + (SMFSADDON_SIZE - 9) / 2,
-                0xFFFFFF, false);
-
         String label = "装置";
         int textWidth = this.textRenderer.getWidth(label);
         context.drawText(this.textRenderer, label,
@@ -82,15 +64,6 @@ public abstract class GhostControlScreenMixin
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void smfsaddon$clickFusionEntry(double mouseX, double mouseY, int button,
                                             CallbackInfoReturnable<Boolean> callbackInfo) {
-        // 先判配置入口，再判装置入口
-        int configLeft = this.x + CONFIG_X;
-        int configTop = this.y + CONFIG_Y;
-        if (isInside(mouseX, mouseY, configLeft, configTop)) {
-            this.client.setScreen(new com.example.smfsaddon.client.AddonConfigScreen(this));
-            callbackInfo.setReturnValue(true);
-            return;
-        }
-
         int left = this.x + SMFSADDON_X;
         int top = this.y + SMFSADDON_Y;
         if (!isInside(mouseX, mouseY, left, top)) {

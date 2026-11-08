@@ -1,4 +1,6 @@
 {
+  "key.categories.smfsaddon": "厉鬼模块化",
+  "key.smfsaddon.config": "打开配置",
   "item.smfsaddon.kakarot_ghost": "卡卡罗特",
   "item.smfsaddon.kakarot_ghost.bind_success": "卡卡罗特已进入鬼槽 %s",
   "item.smfsaddon.kakarot_ghost.desc": "一团被压进掌心的金色气息，摸上去还烫着。",

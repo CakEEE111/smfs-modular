@@ -15,6 +15,7 @@
     "TameableItemAPISlotsMixin"
   ],
   "client": [
+    "CreateWorldScreenMixin",
     "PlayerSsjHairMixin",
     "GhostControlScreenMixin",
     "ItemTooltipMixin"

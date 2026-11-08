@@ -33,6 +33,18 @@ public class SmfsAddonClient implements ClientModInitializer {
     /** 灵异技能面板（避开原版与本体的按键） */
     public static KeyBinding SKILL_PALETTE_KEY;
 
+    /** 打开配置界面，默认不绑定 */
+    public static KeyBinding CONFIG_KEY;
+
+    /**
+     * 自己的按键分类。
+     *
+     * <p>原来挂在 {@code category.smfs.general} 下，和本体的 J/K/G/N/V 挤在一起，
+     * 玩家在按键列表里根本分不清哪几个是我们的。独立分类之后：
+     * 一目了然、可以整组改键、也不会因为本体加键而起冲突。
+     */
+    private static final String KEY_CATEGORY = "key.categories.smfsaddon";
+
     @Override
     public void onInitializeClient() {
         registerRenderer();
@@ -113,26 +125,40 @@ public class SmfsAddonClient implements ClientModInitializer {
                 "key.smfsaddon.transform",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_R,
-                "category.smfs.general"
+                KEY_CATEGORY
         ));
 
         KAMEHAMEHA_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.smfsaddon.kamehameha",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_C,
-                "category.smfs.general"
+                KEY_CATEGORY
         ));
 
         SKILL_PALETTE_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.smfsaddon.skill_palette",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_X,
-                "category.smfs.general"
+                KEY_CATEGORY
+        ));
+
+        CONFIG_KEY = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.smfsaddon.config",
+                InputUtil.Type.KEYSYM,
+                // 默认不绑定：玩家自己指定，避免和任何东西撞
+                GLFW.GLFW_KEY_UNKNOWN,
+                KEY_CATEGORY
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null || client.getNetworkHandler() == null) {
                 return;
+            }
+
+            while (CONFIG_KEY.wasPressed()) {
+                if (client.currentScreen == null) {
+                    client.setScreen(new com.example.smfsaddon.client.AddonConfigScreen(null));
+                }
             }
 
             while (SKILL_PALETTE_KEY.wasPressed()) {
