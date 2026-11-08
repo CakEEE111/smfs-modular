@@ -72,6 +72,20 @@
 
 ---
 
+## 联机与服务器
+
+**只能用「内嵌服务器」联机**：主机在自己的存档里开「对局域网开放」，或用 Essential / 联机工具。玩家都装上本体与本模组即可。
+
+**独立服务器（dedicated server）暂时不行**，原因不在本模组 —— 本体 1.5.0 的 `ModNetwork.register` 在服务端初始化时引用了 `net.minecraft.client.gui.screen.Screen`，服务端环境加载该类直接抛异常：
+
+```
+java.lang.RuntimeException: Cannot load class net.minecraft.client.gui.screen.Screen in environment type SERVER
+    at com.xie.smfs.network.ModNetwork.register(ModNetwork.java:627)
+    at com.xie.smfs.Smfs.onInitialize(Smfs.java:121)
+```
+
+所以只要本体没能上服务端，任何附属都上不去。等本体修好这一处，本模组不需要改：客户端专用的 mixin 单独放在 `smfsaddon.mixins.json` 的 `client` 段，主入口不引用任何客户端类，所有状态按玩家 UUID 记账。
+
 ## 构建
 
 ```bash
