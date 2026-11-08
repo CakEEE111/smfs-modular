@@ -245,16 +245,22 @@ public class GhostFusionScreenHandler extends ScreenHandler {
     /**
      * 由客户端按钮触发。
      */
+    /**
+     * 执行一次合入。
+     *
+     * <p>结果都发到<b>聊天栏</b>而不是动作栏：本体自己在动作栏上持续刷灵异数值，
+     * 我们的提示同一 tick 就被覆盖，玩家看到的就是"点了没反应"。
+     */
     public void performGraft(PlayerEntity player) {
         ItemStack target = targetSlot.getStack(0);
         Identifier ghostType = resolveGhostEntityType();
 
         if (target.isEmpty()) {
-            player.sendMessage(Text.literal("§7左边没有物品"), true);
+            player.sendMessage(Text.literal("§7左边没有物品"), false);
             return;
         }
         if (ghostType == null) {
-            player.sendMessage(Text.literal("§7右边没有厉鬼"), true);
+            player.sendMessage(Text.literal("§7右边没有厉鬼"), false);
             return;
         }
 
@@ -273,7 +279,7 @@ public class GhostFusionScreenHandler extends ScreenHandler {
             if (result.escaped()) {
                 // 鬼爬出来了：它已经是个实体，槽里自然空了
                 this.ghostSlot.setStack(0, ItemStack.EMPTY);
-                player.sendMessage(Text.literal("§4厉鬼复苏 §8压制不足，它从容器里爬了出来"), true);
+                player.sendMessage(Text.literal("§4厉鬼复苏 §8压制不足，它从容器里爬了出来"), false);
             } else {
                 double nextChance = 0.0D;
                 if (ghostType != null) {
@@ -283,22 +289,22 @@ public class GhostFusionScreenHandler extends ScreenHandler {
                 player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
                         + Math.round(result.chance() * 100) + "%（压制 " + (int) result.suppression()
                         + " / 需求 " + (int) result.required() + "）§4 复苏 "
-                        + Math.round(nextChance) + "%"), true);
+                        + Math.round(nextChance) + "%"), false);
             }
         } else if (result.grafted() == 0) {
-            player.sendMessage(Text.literal("§7这些规律已经在物品上了"), true);
+            player.sendMessage(Text.literal("§7这些规律已经在物品上了"), false);
         } else if (result.lucky()) {
             // 赌赢了也算合入成功，厉鬼同样消耗
             this.ghostSlot.setStack(0, ItemStack.EMPTY);
             player.sendMessage(Text.literal("§e压制不足，赌赢了 §7移植：§f" + names
                     + " §8成功率 " + Math.round(result.chance() * 100) + "%"
-                    + " 现有 " + result.grafted() + " 条"), true);
+                    + " 现有 " + result.grafted() + " 条"), false);
         } else {
             // 规律已经进了物品，厉鬼被「用掉」
             this.ghostSlot.setStack(0, ItemStack.EMPTY);
             player.sendMessage(Text.literal("§a已移植：§f" + names
                     + " §8（物品现有 " + result.grafted() + " 条）"
-                    + skipped), true);
+                    + skipped), false);
         }
 
         // 槽内物品 NBT 变了，必须把槽同步给客户端，否则界面还显示旧物品
