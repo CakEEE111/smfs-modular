@@ -41,9 +41,7 @@ public final class GhostModulesCommand {
      * 列出附近的鬼方块。默认查 128 格。
      */
     private static int listHaunts(ServerCommandSource source, double radius) {
-        if (!(source.getWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
-            return 0;
-        }
+        var serverWorld = source.getWorld();
         var center = source.getPosition();
         var found = com.example.smfsaddon.haunt.HauntedBlocks
                 .query(serverWorld, center, radius, 10);
