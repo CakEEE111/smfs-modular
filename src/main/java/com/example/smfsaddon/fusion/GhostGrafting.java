@@ -47,7 +47,8 @@ public final class GhostGrafting {
     private static final double MAX_CHANCE = 0.75D;
 
     public record Result(boolean success, double suppression, double required,
-                         int grafted, double chance, boolean lucky, boolean escaped) {
+                         int grafted, double chance, boolean lucky, boolean escaped,
+                         float escapeChance) {
     }
 
     private GhostGrafting() {
@@ -111,7 +112,7 @@ public final class GhostGrafting {
      */
     public static Result tryGraftForGhost(ItemStack target, Identifier entityType, PlayerEntity player) {
         if (entityType == null) {
-            return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false, false);
+            return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false, false, 0.0F);
         }
         return tryGraft(target, graftPlanFor(entityType), player, entityType);
     }
@@ -126,7 +127,7 @@ public final class GhostGrafting {
     public static Result tryGraft(ItemStack target, List<Identifier> moduleIds,
                                   PlayerEntity player, Identifier bindType) {
         if (target.isEmpty() || moduleIds.isEmpty()) {
-            return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false, false);
+            return new Result(false, FusionFormula.suppression(player), 0.0D, 0, 0.0D, false, false, 0.0F);
         }
 
         double suppression = FusionFormula.suppression(player);
@@ -134,12 +135,12 @@ public final class GhostGrafting {
         int existing = ItemGhostHost.boundGhostTypes(target).size();
         double required = FusionFormula.requiredFor(moduleIds, existing);
         if (required <= 0.0D) {
-            return new Result(false, suppression, 0.0D, 0, 0.0D, false, false);
+            return new Result(false, suppression, 0.0D, 0, 0.0D, false, false, 0.0F);
         }
 
         if (suppression + 1.0E-6D >= required) {
             int applied = graft(target, moduleIds, player, bindType);
-            return new Result(true, suppression, required, applied, 1.0D, false, false);
+            return new Result(true, suppression, required, applied, 1.0D, false, false, 0.0F);
         }
 
         double shortfall = required - suppression;
@@ -152,12 +153,16 @@ public final class GhostGrafting {
             // 只在"真的赌输"时补这一刀。原先放在 tryGraftForGhost 的 !success 分支，
             // 会把"左槽为空 / 需求为 0"这类早退也算成失败，白扣灵异强度。
             boolean escaped = false;
+            float escapeChance = 0.0F;
             if (bindType != null) {
                 FusionBacklash.spiritBacklash(player, bindType.toString());
-                // 赌输之后，素材鬼可能当场复苏（5% 起，每失败一次 +10%）
+                // 先取这次实际要掷的概率，再去掷 —— 掷完计数可能清零，
+                // 事后再查会得到一个和刚才无关的数字
+                escapeChance = FusionEscape.chanceFor(player, bindType.toString());
                 escaped = FusionEscape.maybeEscape(player, bindType.toString());
             }
-            return new Result(false, suppression, required, 0, chance, false, escaped);
+            return new Result(false, suppression, required, 0, chance, false, escaped,
+                    escapeChance);
         }
 
         FusionBacklash.apply(player, shortfall, required, FusionBacklash.FACTOR_LUCKY);
@@ -165,7 +170,7 @@ public final class GhostGrafting {
             FusionEscape.reset(player, bindType.toString());
         }
         int applied = graft(target, moduleIds, player, bindType);
-        return new Result(true, suppression, required, applied, chance, true, false);
+        return new Result(true, suppression, required, applied, chance, true, false, 0.0F);
     }
 
     private static int graft(ItemStack target, List<Identifier> moduleIds,

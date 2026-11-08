@@ -103,8 +103,11 @@ public final class FusionEscape {
         setFailures(player, ghostType, 0);
     }
 
-    /** 当前这只鬼的复苏概率，给界面提示用 */
+    /** 当前这只鬼的复苏概率，给界面提示用。开关关闭时为 0 —— 别显示一个不会发生的概率 */
     public static float chanceFor(PlayerEntity player, String ghostType) {
+        if (!ENABLED) {
+            return 0.0F;
+        }
         return Math.min(1.0F, BASE_CHANCE + CHANCE_STEP * failures(player, ghostType));
     }
 
@@ -116,16 +119,26 @@ public final class FusionEscape {
         }
         Identifier typeId = GhostGrafting.entityTypeOf(ghostType);
         if (typeId == null) {
+            com.example.smfsaddon.SmfsAddon.LOGGER.warn(
+                    "[smfsaddon] 复苏失败：无法从 {} 解析出实体类型", ghostType);
             return false;
         }
         EntityType<?> type = Registries.ENTITY_TYPE.getOrEmpty(typeId).orElse(null);
         if (type == null) {
+            com.example.smfsaddon.SmfsAddon.LOGGER.warn(
+                    "[smfsaddon] 复苏失败：实体类型 {} 未注册", typeId);
             return false;
         }
         Entity entity = type.create(world);
         if (!(entity instanceof GhostEntity ghost)) {
             if (entity != null) {
                 entity.discard();
+                com.example.smfsaddon.SmfsAddon.LOGGER.warn(
+                        "[smfsaddon] 复苏失败：{} 造出来的不是 GhostEntity（{}）",
+                        typeId, entity.getClass().getSimpleName());
+            } else {
+                com.example.smfsaddon.SmfsAddon.LOGGER.warn(
+                        "[smfsaddon] 复苏失败：{} 无法实例化", typeId);
             }
             return false;
         }

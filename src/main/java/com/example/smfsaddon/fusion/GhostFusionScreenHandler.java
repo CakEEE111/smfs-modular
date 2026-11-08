@@ -281,15 +281,11 @@ public class GhostFusionScreenHandler extends ScreenHandler {
                 this.ghostSlot.setStack(0, ItemStack.EMPTY);
                 player.sendMessage(Text.literal("§4厉鬼复苏 §8压制不足，它从容器里爬了出来"), false);
             } else {
-                double nextChance = 0.0D;
-                if (ghostType != null) {
-                    nextChance = com.example.smfsaddon.fusion.FusionEscape
-                            .chanceFor(player, ghostType.toString()) * 100.0D;
-                }
+                // 显示的是「这次真的掷了」的复苏概率，不是下次的预估值
                 player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
                         + Math.round(result.chance() * 100) + "%（压制 " + (int) result.suppression()
                         + " / 需求 " + (int) result.required() + "）§4 复苏 "
-                        + Math.round(nextChance) + "%"), false);
+                        + Math.round(result.escapeChance() * 100.0F) + "%"), false);
             }
         } else if (result.grafted() == 0) {
             player.sendMessage(Text.literal("§7这些规律已经在物品上了"), false);
