@@ -135,9 +135,72 @@ public final class AddonConfig {
         }
         // 缺字段（旧版配置）时补默认值：Gson 对缺失字段留 null
         loaded.fillDefaults();
+        // 手改坏的值（负数、0、超大）在这里夹回安全区间，
+        // 然后连同默认值一起写回文件 —— 玩家下次打开能看到"实际生效的是多少"。
+        loaded.sanitize();
         instance = loaded;
         apply();
         save();
+    }
+
+    /**
+     * 把数值夹回安全区间。
+     *
+     * <h2>为什么必须夹</h2>
+     *
+     * <p>配置文件是给人手改的，写错的代价不对称：
+     *
+     * <ul>
+     *   <li>{@code allowCooldownTicks: 0} —— 交错回到"每秒二十下"，就是我们刚修掉的那个 bug</li>
+     *   <li>{@code costScale: 0} —— 融合需求归零，等于白送</li>
+     *   <li>负数 —— 需求为负，判定分支直接走"失败"却又不扣任何东西</li>
+     * </ul>
+     *
+     * <p>夹紧而不是报错：报错会让玩家卡在"游戏能开但功能不对"的状态里，
+     * 夹紧则至少保证能玩，而且写回文件后玩家看得见真实值。
+     */
+    private void sanitize() {
+        crossing.peacefulRules = clamp(crossing.peacefulRules, 0, 8);
+        crossing.easyRules = clamp(crossing.easyRules, 0, 8);
+        crossing.normalRules = clamp(crossing.normalRules, 0, 8);
+        crossing.hardRules = clamp(crossing.hardRules, 0, 8);
+        crossing.peacefulMechanisms = clamp(crossing.peacefulMechanisms, 0, 4);
+        crossing.easyMechanisms = clamp(crossing.easyMechanisms, 0, 4);
+        crossing.normalMechanisms = clamp(crossing.normalMechanisms, 0, 4);
+        crossing.hardMechanisms = clamp(crossing.hardMechanisms, 0, 4);
+
+        // 下限 10 tick：0 会退回"每 tick 都能打"，那正是让玩家莫名其妙连死的原因
+        crossing.allowCooldownTicks = clamp(crossing.allowCooldownTicks, 10, 200);
+
+        fusion.stealRatio = clamp(fusion.stealRatio, 0.0F, 1.0F);
+        fusion.inheritPerGhost = clamp(fusion.inheritPerGhost, 0.0F, 5.0F);
+        fusion.entryCost = clamp(fusion.entryCost, 0.0D, 10000.0D);
+        fusion.costScale = clamp(fusion.costScale, 1.0D, 1000.0D);
+        fusion.marginalGrowth = clamp(fusion.marginalGrowth, 0.0D, 10.0D);
+        fusion.weightMaxSpirit = clamp(fusion.weightMaxSpirit, 0.0D, 10.0D);
+        fusion.weightResistance = clamp(fusion.weightResistance, 0.0D, 10.0D);
+        fusion.weightDamage = clamp(fusion.weightDamage, 0.0D, 10.0D);
+
+        escape.baseChance = clamp(escape.baseChance, 0.0F, 1.0F);
+        escape.stepChance = clamp(escape.stepChance, 0.0F, 1.0F);
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clamp(double value, double min, double max) {
+        if (Double.isNaN(value)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static float clamp(float value, float min, float max) {
+        if (Float.isNaN(value)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
     }
 
     private void fillDefaults() {
