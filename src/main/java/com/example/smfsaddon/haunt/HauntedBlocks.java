@@ -117,67 +117,111 @@ public final class HauntedBlocks {
      * 世界 tick。每次只做一次很便宜的遍历：没有玩家靠近的条目直接跳过。
      */
     public static void tick(ServerWorld world) {
+        // 不用每 tick 扫。判定本身是 100 tick 一次、粒子 20 tick 一次，
+        // 这里 10 tick 一轮完全够，成本直接降到原来的十分之一。
+        long now = world.getTime();
+        if (now % 10L != 0L) {
+            return;
+        }
+
         HauntStore store = HauntStore.of(world);
         if (store.haunts().isEmpty()) {
             return;
         }
 
-        long now = world.getTime();
+        // 以玩家为中心，而不是以方块为中心：
+        // 只有玩家附近 3×3 区块里的鬼方块才需要被看，剩下的连遍历都省了。
+        Map<Long, List<BlockPos>> buckets = new HashMap<>();
+        for (BlockPos pos : store.haunts().keySet()) {
+            buckets.computeIfAbsent(chunkKey(pos.getX() >> 4, pos.getZ() >> 4),
+                    ignored -> new ArrayList<>()).add(pos);
+        }
+
         List<BlockPos> drop = new ArrayList<>();
+        List<BlockPos> touched = new ArrayList<>();
 
-        for (Map.Entry<BlockPos, HauntStore.Entry> item : new ArrayList<>(store.haunts().entrySet())) {
-            BlockPos pos = item.getKey();
-            HauntStore.Entry entry = item.getValue();
-
-            // 方块被别的途径挖掉/替换了：数据跟着清掉，别留幽灵条目
-            if (world.getBlockState(pos).isAir()) {
-                drop.add(pos);
+        for (ServerPlayerEntity player : world.getPlayers()) {
+            if (player.isSpectator()) {
                 continue;
             }
-
-            PlayerEntity near = nearestPlayer(world, pos);
-            if (near == null) {
-                // 没人时复位，下次进来立刻重新预警
-                if (entry.warnedAt != 0L) {
-                    entry.warnedAt = 0L;
-                    store.markDirty();
+            int centerX = player.getBlockX() >> 4;
+            int centerZ = player.getBlockZ() >> 4;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    List<BlockPos> list = buckets.get(chunkKey(centerX + dx, centerZ + dz));
+                    if (list == null) {
+                        continue;
+                    }
+                    for (BlockPos pos : list) {
+                        evaluate(world, store, pos, player, now, drop);
+                        touched.add(pos);
+                    }
                 }
-                continue;
             }
+        }
 
-            // 预警音：进范围就响，之后每 10 秒补一次
-            if (now - entry.warnedAt >= WARN_INTERVAL) {
-                entry.warnedAt = now;
+        // 这一轮没人经过的鬼方块：把预警时间清零，下次来人立刻重新响
+        for (Map.Entry<BlockPos, HauntStore.Entry> item : store.haunts().entrySet()) {
+            if (item.getValue().warnedAt != 0L && !touched.contains(item.getKey())) {
+                item.getValue().warnedAt = 0L;
                 store.markDirty();
-                world.playSound(null, pos, SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE,
-                        SoundCategory.HOSTILE, 1.0F, 0.8F + world.getRandom().nextFloat() * 0.4F);
-            }
-
-            if (near.isCreative() || near.isSpectator()) {
-                // 创造/旁观只给音效和粒子，不参与判定 ——
-                // 他们本来就打不掉血，硬判也只会得到"伤害被忽略"的假象。
-                // 但要在动作栏说清楚，否则测试时看起来就像功能没生效。
-                if (near instanceof ServerPlayerEntity player && now % 200L == 0L) {
-                    player.sendMessage(Text.literal("§7（创造模式不参与鬼方块判定）"), true);
-                }
-                continue;
-            }
-
-            if (now - entry.judgedAt < JUDGE_INTERVAL) {
-                continue;
-            }
-            entry.judgedAt = now;
-            store.markDirty();
-
-            if (judge(world, pos, entry, near) && entry.revival >= MAX_REVIVAL) {
-                // 苏醒：鬼真的爬出来了
-                release(world, pos, entry.ghostType, near);
-                drop.add(pos);
             }
         }
 
         for (BlockPos pos : drop) {
             store.remove(pos);
+        }
+    }
+
+    private static long chunkKey(int chunkX, int chunkZ) {
+        return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
+    }
+
+    /** 单个玩家与单个鬼方块之间的一次检查 */
+    private static void evaluate(ServerWorld world, HauntStore store, BlockPos pos,
+                                 ServerPlayerEntity player, long now, List<BlockPos> drop) {
+        HauntStore.Entry entry = store.get(pos);
+        if (entry == null) {
+            return;
+        }
+
+        // 方块被别的途径挖掉/替换了：数据跟着清掉，别留幽灵条目
+        if (world.getBlockState(pos).isAir()) {
+            drop.add(pos);
+            return;
+        }
+
+        double distance = player.squaredDistanceTo(
+                pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+        if (distance > TRIGGER_RADIUS * TRIGGER_RADIUS) {
+            return;
+        }
+
+        // 预警音：进范围就响，之后每 10 秒补一次
+        if (now - entry.warnedAt >= WARN_INTERVAL) {
+            entry.warnedAt = now;
+            store.markDirty();
+            world.playSound(null, pos, SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE,
+                    SoundCategory.HOSTILE, 1.0F, 0.8F + world.getRandom().nextFloat() * 0.4F);
+        }
+
+        if (player.isCreative()) {
+            // 创造玩家打不掉血，硬判只是假象；但要说清楚，否则测试时以为功能坏了
+            if (now % 200L == 0L) {
+                player.sendMessage(Text.literal("§7（创造模式不参与鬼方块判定）"), true);
+            }
+            return;
+        }
+
+        if (now - entry.judgedAt < JUDGE_INTERVAL) {
+            return;
+        }
+        entry.judgedAt = now;
+        store.markDirty();
+
+        if (judge(world, pos, entry, player) && entry.revival >= MAX_REVIVAL) {
+            release(world, pos, entry.ghostType, player);
+            drop.add(pos);
         }
     }
 
@@ -285,6 +329,9 @@ public final class HauntedBlocks {
         if (world.getTime() % 20L != 0L) {
             return;
         }
+        if (world.getPlayers().isEmpty()) {
+            return;
+        }
 
         for (Map.Entry<BlockPos, HauntStore.Entry> item : store.haunts().entrySet()) {
             BlockPos pos = item.getKey();
@@ -319,23 +366,6 @@ public final class HauntedBlocks {
     }
 
     // ---------------------------------------------------------------- 内部
-
-    private static PlayerEntity nearestPlayer(ServerWorld world, BlockPos pos) {
-        PlayerEntity best = null;
-        double bestDistance = TRIGGER_RADIUS * TRIGGER_RADIUS;
-        for (ServerPlayerEntity player : world.getPlayers()) {
-            if (player.isSpectator()) {
-                continue;
-            }
-            double distance = player.squaredDistanceTo(
-                    pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
-            if (distance <= bestDistance) {
-                bestDistance = distance;
-                best = player;
-            }
-        }
-        return best;
-    }
 
     private static GhostEntity freshShadow(ServerWorld world, Identifier type, BlockPos pos) {
         EntityType<?> entityType = Registries.ENTITY_TYPE.getOrEmpty(type).orElse(null);
