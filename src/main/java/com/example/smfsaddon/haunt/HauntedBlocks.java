@@ -253,13 +253,19 @@ public final class HauntedBlocks {
         world.getChunk(chunkX, chunkZ);
 
         int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (top <= world.getBottomY() + 1) {
+        // 高度图在「区块还没生成完」时会返回谷底，那会让我们把鬼埋进基岩层。
+        // 两条防线：高度必须离开谷底一点，且表面方块<b>上面必须是空气</b> ——
+        // 真正的地表上方永远是空的，基岩/石头里面不是。
+        if (top <= world.getBottomY() + 4) {
             return null;
         }
         BlockPos surface = new BlockPos(x, top - 1, z);
         var surfaceState = world.getBlockState(surface);
         if (surfaceState.isAir() || !surfaceState.isSolidBlock(world, surface)
                 || !surfaceState.getFluidState().isEmpty()) {
+            return null;
+        }
+        if (!world.getBlockState(surface.up()).isAir()) {
             return null;
         }
 
