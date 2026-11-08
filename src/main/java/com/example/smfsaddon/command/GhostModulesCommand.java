@@ -110,11 +110,27 @@ public final class GhostModulesCommand {
         return 1;
     }
 
-    /** 实体 ID 补全：直接列注册表，省得手打命名空间 */
+    /**
+     * 补全只给鬼。
+     *
+     * <p>原来直接列 {@code Registries.ENTITY_TYPE.getIds()}，结果僵尸、牛、村民
+     * 全在列表里 —— 那些既不能污染进方块，也不会被交错，列出来只会误导。
+     * 现在走交错候选池，判据和"什么算鬼"完全一致。
+     */
+    /** 模块补全：只列已注册的模块，别看什么都往上写 */
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<ServerCommandSource>
+            MODULE_SUGGESTIONS = (context, builder) -> {
+        for (var module : com.example.smfsaddon.ghost.module.GhostModuleRegistry.all()) {
+            builder.suggest(module.id().toString());
+        }
+        return builder.buildFuture();
+    };
+
     private static final com.mojang.brigadier.suggestion.SuggestionProvider<ServerCommandSource>
             ENTITY_SUGGESTIONS = (context, builder) ->
             net.minecraft.command.CommandSource.suggestIdentifiers(
-                    net.minecraft.registry.Registries.ENTITY_TYPE.getIds(), builder);
+                    com.example.smfsaddon.crossing.GhostRuleCrossing
+                            .ghostTypeIds(context.getSource().getWorld()), builder);
 
 
 
@@ -188,12 +204,14 @@ public final class GhostModulesCommand {
                                 .executes(context -> listNearest(context.getSource())))
                         .then(CommandManager.literal("attach")
                                 .then(CommandManager.argument("module", IdentifierArgumentType.identifier())
+                                        .suggests(MODULE_SUGGESTIONS)
                                         .executes(context -> {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return attachNearest(context.getSource(), id);
                                         })))
                         .then(CommandManager.literal("detach")
                                 .then(CommandManager.argument("module", IdentifierArgumentType.identifier())
+                                        .suggests(MODULE_SUGGESTIONS)
                                         .executes(context -> {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return detachNearest(context.getSource(), id);

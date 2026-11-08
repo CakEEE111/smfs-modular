@@ -459,6 +459,19 @@ public final class GhostRuleCrossing {
      * 粗筛规则：路径以 {@code _ghost} 结尾、以 {@code ghost_} 开头，或命名空间是 smfs。
      */
     /**
+     * 可被当作"鬼"处理的实体类型。
+     *
+     * <p>给指令补全用：<b>只列鬼</b>，不要把僵尸、牛、村民也塞进列表 ——
+     * 那些东西既不能被污染进方块，也不会被交错。
+     */
+    public static List<Identifier> ghostTypeIds(World world) {
+        if (world == null) {
+            return List.of();
+        }
+        return pool(world);
+    }
+
+    /**
      * 该命名空间对应的模组是否声明了 smfs 依赖。
      *
      * <p>附属的命名空间不一定等于模组 id，但绝大多数是一致的；
