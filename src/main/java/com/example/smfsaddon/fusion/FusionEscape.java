@@ -38,15 +38,24 @@ import java.util.UUID;
 public final class FusionEscape {
 
     /** 第一次失败的基础概率 */
-    public static final float BASE_CHANCE = 0.05F;
+    public static float BASE_CHANCE = 0.05F;
 
     /** 每多失败一次，叠加的概率 */
-    public static final float CHANCE_STEP = 0.10F;
+    public static float CHANCE_STEP = 0.10F;
 
     /** 玩家 → 鬼种 → 连续失败次数 */
     private static final Map<UUID, Map<String, Integer>> FAILURES = new HashMap<>();
 
     private static final int TRACK_LIMIT = 512;
+
+    /** 总开关，配置里可关掉 */
+    public static boolean ENABLED = true;
+
+    public static void applyConfig(boolean enabled, float baseChance, float stepChance) {
+        ENABLED = enabled;
+        BASE_CHANCE = baseChance;
+        CHANCE_STEP = stepChance;
+    }
 
     private FusionEscape() {
     }
@@ -57,6 +66,9 @@ public final class FusionEscape {
      * @return {@code true} 表示鬼跑了（调用方应当清空素材槽）
      */
     public static boolean maybeEscape(PlayerEntity player, String ghostType) {
+        if (!ENABLED) {
+            return false;
+        }
         if (player == null || ghostType == null || player.getWorld() == null
                 || player.getWorld().isClient()) {
             return false;

@@ -36,13 +36,13 @@ public final class FusionFormula {
      *
      * <p>现在全额：5150 就是 5150，首次合入差的那点由抗性与灵异伤害补。
      */
-    public static final double WEIGHT_MAX_SPIRIT = 1.00D;
+    public static double WEIGHT_MAX_SPIRIT = 1.00D;
 
     /** 灵异抗性权重：最直接，抗性就是拿来压鬼的 */
-    public static final double WEIGHT_RESISTANCE = 1.00D;
+    public static double WEIGHT_RESISTANCE = 1.00D;
 
     /** 灵异伤害权重：攻击性折半计入，鼓励纯抗性堆叠 */
-    public static final double WEIGHT_DAMAGE = 0.50D;
+    public static double WEIGHT_DAMAGE = 0.50D;
 
     /** 模块未注册时的兜底需求 */
     private static final double DEFAULT_COST = 30.0D;
@@ -56,7 +56,7 @@ public final class FusionFormula {
      *
      * <p><b>调平衡就改这一个数。</b>
      */
-    public static final double COST_SCALE = 30.0D;
+    public static double COST_SCALE = 30.0D;
 
     /**
      * 边际成本：同一件物品上每多融一只鬼，成本上浮多少。
@@ -65,7 +65,7 @@ public final class FusionFormula {
      * 这是为了堵住「一只剑塞十只鬼」——不是为了难为玩家，
      * 而是融合太多本来就会让技能面板失控。
      */
-    public static final double MARGINAL_GROWTH = 0.75D;
+    public static double MARGINAL_GROWTH = 0.75D;
 
     /**
      * 每次合入的「入门费」，与要融几个模块无关。
@@ -84,7 +84,24 @@ public final class FusionFormula {
      *
      * <p>要整体加减负，优先调这一个数；再不够动 {@link #COST_SCALE}。
      */
-    public static final double ENTRY_COST = 50.0D;
+    public static double ENTRY_COST = 50.0D;
+
+    /**
+     * 由配置写入这些旋钮。
+     *
+     * <p>写成可变的静态字段而不是每次读配置：调用点太多，逐个塞 getter
+     * 会把逻辑淹掉。写入只发生在配置加载/保存那一刻。
+     */
+    public static void applyConfig(double entryCost, double costScale, double marginalGrowth,
+                                   double weightMaxSpirit, double weightResistance,
+                                   double weightDamage) {
+        ENTRY_COST = entryCost;
+        COST_SCALE = costScale;
+        MARGINAL_GROWTH = marginalGrowth;
+        WEIGHT_MAX_SPIRIT = weightMaxSpirit;
+        WEIGHT_RESISTANCE = weightResistance;
+        WEIGHT_DAMAGE = weightDamage;
+    }
 
     private FusionFormula() {
     }

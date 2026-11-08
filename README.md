@@ -56,6 +56,24 @@
 
 ---
 
+## 配置
+
+首次启动会在 `config/smfsaddon.json` 生成一份配置；也可以在游戏内**灵异主界面 →「配置」**里用加减按钮调，点保存立即生效，不用重启。
+
+| 项 | 默认 | 说明 |
+|---|---|---|
+| `crossing.easyRules` / `normalRules` / `hardRules` | 2 / 3 / 4 | 各难度借几条规律 |
+| `crossing.normalMechanisms` / `hardMechanisms` | 1 / 2 | 各难度借几个机制 |
+| `crossing.allowCooldownTicks` | 40 | 交错出手间隔（tick），调大更温和 |
+| `fusion.stealRatio` | 0.10 | 每只鬼贡献最大灵异的比例 |
+| `fusion.inheritPerGhost` | 0.50 | 每只鬼增加的继承倍率 |
+| `fusion.entryCost` / `costScale` | 50 / 30 | 融合需求 = (入门费 + 模块代价) × 系数 |
+| `escape.enabled` | true | 关掉后融合失败不会复苏厉鬼 |
+| `escape.baseChance` / `stepChance` | 0.05 / 0.10 | 复苏概率与每次失败的叠加 |
+
+觉得太难：把 `hardRules` 调到 2、`allowCooldownTicks` 调到 60。
+觉得太简单：反过来。
+
 ## 命令
 
 ```
@@ -66,6 +84,7 @@
 /ghostmodules detach <模块>     卸载
 /ghostmodules slots            鬼槽 API 视角（含融合物品投影）
 /ghostmodules assembly         当前装配表
+/ghostmodules spawn <实体ID>    就地生成一只鬼（会按当前难度自动交错）
 ```
 
 按键：`X` 技能面板　`R` 变身（卡卡罗特鬼）　`C` 龟派气功

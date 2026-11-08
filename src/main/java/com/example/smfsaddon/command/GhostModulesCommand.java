@@ -36,6 +36,13 @@ import java.util.List;
 public final class GhostModulesCommand {
 
     private static final double SEARCH_RADIUS = 8.0D;
+    /** 实体 ID 补全：直接列注册表，省得手打命名空间 */
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<ServerCommandSource>
+            ENTITY_SUGGESTIONS = (context, builder) ->
+            net.minecraft.command.CommandSource.suggestIdentifiers(
+                    net.minecraft.registry.Registries.ENTITY_TYPE.getIds(), builder);
+
+
 
     private GhostModulesCommand() {
     }
@@ -117,6 +124,11 @@ public final class GhostModulesCommand {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return detachNearest(context.getSource(), id);
                                         })))
+                        .then(CommandManager.literal("spawn")
+                                .then(CommandManager.argument("type", IdentifierArgumentType.identifier())
+                                        .suggests(ENTITY_SUGGESTIONS)
+                                        .executes(context -> spawn(context.getSource(),
+                                                IdentifierArgumentType.getIdentifier(context, "type")))))
                 ));
     }
 
@@ -148,6 +160,36 @@ public final class GhostModulesCommand {
             source.sendFeedback(() -> Text.literal("  §d交错规律 §8(" + types.size() + " 条)："
                     + types), false);
         }
+        return 1;
+    }
+
+    /**
+     * 在指令执行位置生成一只鬼，用于演示与排查。
+     *
+     * <p>不需要额外开关：交错是鬼第一次 tick 时按当时难度自动抽的，
+     * 所以刚生成的鬼就已经带着借来的规律。
+     */
+    private static int spawn(ServerCommandSource source, Identifier typeId) {
+        var type = net.minecraft.registry.Registries.ENTITY_TYPE.getOrEmpty(typeId).orElse(null);
+        if (type == null) {
+            source.sendError(Text.literal("实体不存在：" + typeId));
+            return 0;
+        }
+        var world = source.getWorld();
+        var entity = type.create(world);
+        if (entity == null) {
+            source.sendError(Text.literal("这个实体无法生成：" + typeId));
+            return 0;
+        }
+        var pos = source.getPosition();
+        entity.refreshPositionAndAngles(pos.x, pos.y, pos.z, source.getEntity() == null
+                ? 0.0F : source.getEntity().getYaw(), 0.0F);
+        world.spawnEntity(entity);
+
+        int rules = com.example.smfsaddon.crossing.GhostRuleCrossing.countFor(world);
+        int mechanisms = com.example.smfsaddon.crossing.GhostRuleCrossing.countForMechanisms(world);
+        source.sendFeedback(() -> Text.literal("§a已生成 " + typeId + " §8（本难度交错："
+                + rules + " 条规律 / " + mechanisms + " 个机制）"), true);
         return 1;
     }
 

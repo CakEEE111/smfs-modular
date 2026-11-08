@@ -54,6 +54,10 @@ public class SmfsAddon implements ModInitializer {
     public void onInitialize() {
         INSTANCE = this;
 
+        // 配置最先读：后面所有旋钮（交错条数、融合比例、复苏概率）都从这里取。
+        // 读不到文件就用默认值并且立刻写一份出来，玩家至少知道该改哪个文件。
+        com.example.smfsaddon.config.AddonConfig.load();
+
         // 厉鬼模块系统不依赖本体 API，先注册，保证后面即使降级它依然可用。
         com.example.smfsaddon.ghost.module.GhostModuleRegistry.registerBuiltins();
         com.example.smfsaddon.command.GhostModulesCommand.register();

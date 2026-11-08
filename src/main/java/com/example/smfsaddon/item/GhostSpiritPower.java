@@ -35,7 +35,7 @@ import java.util.Map;
 public final class GhostSpiritPower {
 
     /** 每只鬼窃取的比例 */
-    public static final float STEAL_RATIO = 0.10F;
+    public static float STEAL_RATIO = 0.10F;
 
     /**
      * 继承倍率：<b>每只鬼加 50%</b>。
@@ -47,10 +47,16 @@ public final class GhostSpiritPower {
      * <p>公式：
      * <pre>实际灵异伤害 = 基础灵异伤害 + 玩家灵异伤害 × (鬼数 × 50%)</pre>
      */
-    public static final float INHERIT_PER_GHOST = 0.5F;
+    public static float INHERIT_PER_GHOST = 0.5F;
 
     /** 鬼种 → 该鬼贡献的灵异伤害（已乘比例） */
     private static final Map<String, Float> CACHE = new HashMap<>();
+
+    /** 由配置写入 */
+    public static void applyConfig(float stealRatio, float inheritPerGhost) {
+        STEAL_RATIO = stealRatio;
+        INHERIT_PER_GHOST = inheritPerGhost;
+    }
 
     private GhostSpiritPower() {
     }

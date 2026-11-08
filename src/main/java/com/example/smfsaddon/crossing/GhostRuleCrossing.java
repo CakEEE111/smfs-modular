@@ -53,12 +53,8 @@ public final class GhostRuleCrossing {
      *
      * <p>要加码就整体 +1，要改单档就改这一个数 —— 这是唯一需要动的地方。
      */
-    private static final Map<net.minecraft.world.Difficulty, Integer> COUNT = Map.of(
-            net.minecraft.world.Difficulty.PEACEFUL, 0,
-            net.minecraft.world.Difficulty.EASY, 2,
-            net.minecraft.world.Difficulty.NORMAL, 3,
-            net.minecraft.world.Difficulty.HARD, 4
-    );
+    private static final Map<net.minecraft.world.Difficulty, Integer> COUNT = new java.util.EnumMap<>(
+            net.minecraft.world.Difficulty.class);
 
     /**
      * 可被借走的「机制」模块白名单。
@@ -107,12 +103,8 @@ public final class GhostRuleCrossing {
      * <p>比规律少：一条机制顶得上好几条判定（踩头是一击必杀），
      * 借太多会让"交错"变成"缝合怪"，玩家连它是什么鬼都认不出来。
      */
-    private static final Map<net.minecraft.world.Difficulty, Integer> MECHANISM_COUNT = Map.of(
-            net.minecraft.world.Difficulty.PEACEFUL, 0,
-            net.minecraft.world.Difficulty.EASY, 0,
-            net.minecraft.world.Difficulty.NORMAL, 1,
-            net.minecraft.world.Difficulty.HARD, 2
-    );
+    private static final Map<net.minecraft.world.Difficulty, Integer> MECHANISM_COUNT = new java.util.EnumMap<>(
+            net.minecraft.world.Difficulty.class);
 
     /** 能当影子的类型（懒加载一次，之后复用） */
     private static List<Identifier> pool;
@@ -157,7 +149,7 @@ public final class GhostRuleCrossing {
      * 每个 tick 都会执行一次袭击（一秒 20 下）。所以这里自己补一道闸：
      * 冷却期内<b>不表态</b>，让本体照常去问鬼自己的规律，原版节奏就回来了。
      */
-    private static final int ALLOW_COOLDOWN_TICKS = 40;
+    private static int ALLOW_COOLDOWN_TICKS = 40;
 
     /** 宿主 → 目标 → 上次允许的 tick */
     private static final Map<UUID, Map<UUID, Long>> ALLOW_AT = new HashMap<>();
@@ -401,6 +393,28 @@ public final class GhostRuleCrossing {
     }
 
     /** 世界卸载时清空，别让 ServerWorld 被静态表攥住 */
+    /**
+     * 由配置写入难度档位与出手冷却。
+     */
+    public static void applyConfig(int peacefulRules, int easyRules, int normalRules, int hardRules,
+                                   int peacefulMechanisms, int easyMechanisms,
+                                   int normalMechanisms, int hardMechanisms,
+                                   int allowCooldownTicks) {
+        COUNT.clear();
+        COUNT.put(net.minecraft.world.Difficulty.PEACEFUL, Math.max(0, peacefulRules));
+        COUNT.put(net.minecraft.world.Difficulty.EASY, Math.max(0, easyRules));
+        COUNT.put(net.minecraft.world.Difficulty.NORMAL, Math.max(0, normalRules));
+        COUNT.put(net.minecraft.world.Difficulty.HARD, Math.max(0, hardRules));
+
+        MECHANISM_COUNT.clear();
+        MECHANISM_COUNT.put(net.minecraft.world.Difficulty.PEACEFUL, Math.max(0, peacefulMechanisms));
+        MECHANISM_COUNT.put(net.minecraft.world.Difficulty.EASY, Math.max(0, easyMechanisms));
+        MECHANISM_COUNT.put(net.minecraft.world.Difficulty.NORMAL, Math.max(0, normalMechanisms));
+        MECHANISM_COUNT.put(net.minecraft.world.Difficulty.HARD, Math.max(0, hardMechanisms));
+
+        ALLOW_COOLDOWN_TICKS = Math.max(0, allowCooldownTicks);
+    }
+
     public static void clearCache() {
         SHADOWS.clear();
         UNAVAILABLE.clear();
