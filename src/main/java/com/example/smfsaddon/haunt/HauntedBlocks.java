@@ -272,6 +272,12 @@ public final class HauntedBlocks {
         int depth = config.minDepth + world.getRandom().nextInt(
                 Math.max(1, config.maxDepth - config.minDepth + 1));
         BlockPos target = surface.down(depth);
+        // 最后一道：埋点必须离开世界底部足够远。
+        // 高度图偶尔会在区块刚生成完时给出谷底值（实测出现过 y=-63 的落点），
+        // 那一列的"地表"其实是基岩上方的深板岩，上面也确实有空气 —— 前两条判据拦不住。
+        if (target.getY() < world.getBottomY() + 8) {
+            return null;
+        }
         var targetState = world.getBlockState(target);
         if (targetState.isAir() || !targetState.isSolidBlock(world, target)
                 || !targetState.getFluidState().isEmpty()) {
