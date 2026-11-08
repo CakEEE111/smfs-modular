@@ -51,8 +51,21 @@ public final class HauntedBlocks {
     /** 判定范围（格） */
     private static final double TRIGGER_RADIUS = 5.0D;
 
-    /** 判定间隔：60 tick = 3 秒 */
-    private static final long JUDGE_INTERVAL = 60L;
+    /**
+     * 判定间隔：100 tick = 5 秒。
+     *
+     * <p>和本体一致 —— 本体每次袭击之后把 {@code attackCooldown} 设成 100。
+     * 早先用 60（3 秒），比本体还勤，压着人打。
+     */
+    private static final long JUDGE_INTERVAL = 100L;
+
+    /**
+     * 方块状态下的伤害倍率。
+     *
+     * <p>只有 10%：鬼还被关在方块里，只能隔着砖缝伸一只手出来，
+     * 不该和它本体破封而出时的威力一样。真正的全额伤害留给"复苏之后"。
+     */
+    private static final float BLOCK_DAMAGE_RATIO = 0.10F;
 
     /**
      * 预警音的重复间隔：200 tick = 10 秒。
@@ -71,9 +84,6 @@ public final class HauntedBlocks {
 
     /** 异象可见范围（只给"身上有灵异物品"的人） */
     private static final double SIGHT_RADIUS = 8.0D;
-
-    /** 影子实例缓存：类型 → 一只不在世界里的鬼，只用来问判定 */
-    private static final Map<Identifier, GhostEntity> SHADOWS = new HashMap<>();
 
     private HauntedBlocks() {
     }
@@ -141,7 +151,12 @@ public final class HauntedBlocks {
             }
 
             if (near.isCreative() || near.isSpectator()) {
-                // 创造/旁观只给音效和粒子，不参与判定
+                // 创造/旁观只给音效和粒子，不参与判定 ——
+                // 他们本来就打不掉血，硬判也只会得到"伤害被忽略"的假象。
+                // 但要在动作栏说清楚，否则测试时看起来就像功能没生效。
+                if (near instanceof ServerPlayerEntity player && now % 200L == 0L) {
+                    player.sendMessage(Text.literal("§7（创造模式不参与鬼方块判定）"), true);
+                }
                 continue;
             }
 
@@ -170,24 +185,37 @@ public final class HauntedBlocks {
      */
     private static boolean judge(ServerWorld world, BlockPos pos, HauntStore.Entry entry,
                                  PlayerEntity player) {
-        GhostEntity ghost = shadow(world, entry.ghostType, pos);
+        // 每次新建一只，不复用：本体不少鬼的 shouldAttackPlayer 里带着
+        // attackCooldown / blockAttackCooldown 之类的身体状态，缓存下来的影子
+        // 打完一次就永远"冷却中"，之后再也判不过 —— 表现就是"怎么打都不触发"。
+        GhostEntity ghost = freshShadow(world, entry.ghostType, pos);
         if (ghost == null) {
             return false;
         }
-        if (ghost.isPlayerProtected(player)) {
-            return false;
-        }
-        if (!ghost.shouldAttackPlayer(player)) {
-            return false;
-        }
+        try {
+            if (ghost.isPlayerProtected(player)) {
+                return false;
+            }
+            if (!ghost.shouldAttackPlayer(player)) {
+                return false;
+            }
 
-        boolean hit = ghost.tryAttack(player);
-        if (hit) {
-            entry.revival += REVIVAL_PER_HIT;
-            world.playSound(null, pos, SoundEvents.ENTITY_ELDER_GUARDIAN_HURT,
-                    SoundCategory.HOSTILE, 0.6F, 1.2F);
+            // 伤害按 10% 结算：不能直接 tryAttack，那是全额伤害。
+            // 走 player.damage 仍然经过原版护甲/附魔/吸收，只是数值被压过。
+            float full = (float) ghost.getAttributeValue(
+                    net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE);
+            float amount = Math.max(1.0F, full * BLOCK_DAMAGE_RATIO);
+            boolean hit = player.damage(ghost.getDamageSources().mobAttack(ghost), amount);
+
+            if (hit) {
+                entry.revival += REVIVAL_PER_HIT;
+                world.playSound(null, pos, SoundEvents.ENTITY_ELDER_GUARDIAN_HURT,
+                        SoundCategory.HOSTILE, 0.6F, 1.2F);
+            }
+            return hit;
+        } finally {
+            ghost.discard();
         }
-        return hit;
     }
 
     // ---------------------------------------------------------------- 破封
@@ -300,29 +328,24 @@ public final class HauntedBlocks {
         return best;
     }
 
-    private static GhostEntity shadow(ServerWorld world, Identifier type, BlockPos pos) {
-        GhostEntity cached = SHADOWS.get(type);
-        if (cached == null || cached.getWorld() != world) {
-            EntityType<?> entityType = Registries.ENTITY_TYPE.getOrEmpty(type).orElse(null);
-            if (entityType == null) {
-                return null;
-            }
-            Entity created = entityType.create(world);
-            if (!(created instanceof GhostEntity ghost)) {
-                if (created != null) {
-                    created.discard();
-                }
-                return null;
-            }
-            cached = ghost;
-            SHADOWS.put(type, cached);
+    private static GhostEntity freshShadow(ServerWorld world, Identifier type, BlockPos pos) {
+        EntityType<?> entityType = Registries.ENTITY_TYPE.getOrEmpty(type).orElse(null);
+        if (entityType == null) {
+            return null;
         }
-        cached.refreshPositionAndAngles(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
-        return cached;
+        Entity created = entityType.create(world);
+        if (!(created instanceof GhostEntity ghost)) {
+            if (created != null) {
+                created.discard();
+            }
+            return null;
+        }
+        ghost.refreshPositionAndAngles(pos.getX() + 0.5D, pos.getY(), pos.getZ() + 0.5D, 0.0F, 0.0F);
+        return ghost;
     }
 
-    /** 世界卸载时清空影子，别让 ServerWorld 被静态表攥住 */
+    /** 目前没有需要清空的静态缓存，保留方法给上层统一调用 */
     public static void clearCache() {
-        SHADOWS.clear();
+        // 影子改为每次新建后这里不再持有任何引用
     }
 }
