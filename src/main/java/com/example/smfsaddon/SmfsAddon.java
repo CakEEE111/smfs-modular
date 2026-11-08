@@ -77,11 +77,24 @@ public class SmfsAddon implements ModInitializer {
             com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid());
             com.example.smfsaddon.item.FusedGhostSlots.forget(handler.getPlayer().getUuid());
         });
+        // 鬼方块：判定与异象
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(world -> {
+            com.example.smfsaddon.haunt.HauntedBlocks.tick(world);
+            com.example.smfsaddon.haunt.HauntedBlocks.spawnHints(world);
+        });
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register(
+                (world, player, pos, state, blockEntity) -> {
+                    if (world instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                        com.example.smfsaddon.haunt.HauntedBlocks.onBroken(serverWorld, pos);
+                    }
+                });
+
         // 世界卸载时清掉交错用的影子实例，别让 ServerWorld 被静态表攥住
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(
                 server -> {
                     com.example.smfsaddon.crossing.GhostRuleCrossing.clearCache();
                     com.example.smfsaddon.fusion.FusionEscape.clearCache();
+                    com.example.smfsaddon.haunt.HauntedBlocks.clearCache();
                 });
         // 开服就先建好交错候选池，避免第一只鬼生成时卡一下
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(

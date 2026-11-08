@@ -18,6 +18,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
@@ -36,6 +37,32 @@ import java.util.List;
 public final class GhostModulesCommand {
 
     private static final double SEARCH_RADIUS = 8.0D;
+    /**
+     * 把玩家看着的方块（没有目标就用脚下）变成鬼方块。
+     */
+    private static int haunt(ServerCommandSource source, Identifier ghostType) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("只能由玩家执行"));
+            return 0;
+        }
+        var hit = player.raycast(6.0D, 0.0F, false);
+        BlockPos pos = hit instanceof net.minecraft.util.hit.BlockHitResult blockHit
+                ? blockHit.getBlockPos()
+                : player.getBlockPos().down();
+
+        if (!(player.getWorld() instanceof net.minecraft.server.world.ServerWorld world)) {
+            return 0;
+        }
+        if (!com.example.smfsaddon.haunt.HauntedBlocks.haunt(world, pos, ghostType)) {
+            source.sendError(Text.literal("这个位置放不了（空气）"));
+            return 0;
+        }
+        source.sendFeedback(() -> Text.literal("§a已污染方块 §8" + pos.toShortString()
+                + " 里关着 " + ghostType + "§7（靠近 5 格内每 3 秒判定一次，打碎会放它出来）"), false);
+        return 1;
+    }
+
     /**
      * 给最近的鬼补上（或重抽）灵异交错。
      *
@@ -171,6 +198,11 @@ public final class GhostModulesCommand {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return detachNearest(context.getSource(), id);
                                         })))
+                        .then(CommandManager.literal("haunt")
+                                .then(CommandManager.argument("type", IdentifierArgumentType.identifier())
+                                        .suggests(ENTITY_SUGGESTIONS)
+                                        .executes(context -> haunt(context.getSource(),
+                                                IdentifierArgumentType.getIdentifier(context, "type")))))
                         .then(CommandManager.literal("cross")
                                 .executes(context -> crossNearest(context.getSource(), false))
                                 .then(CommandManager.literal("force")

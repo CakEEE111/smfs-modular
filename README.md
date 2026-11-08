@@ -87,6 +87,7 @@
 /ghostmodules spawn <实体ID>    就地生成一只鬼（会按当前难度自动交错）
 /ghostmodules cross            给最近的鬼补上交错（老存档用）
 /ghostmodules cross force      重抽（先卸再抽）
+/ghostmodules haunt <实体ID>    把看着的方块变成鬼方块（里面关一只鬼）
 ```
 
 按键：`X` 技能面板　`R` 变身（卡卡罗特鬼）　`C` 龟派气功
