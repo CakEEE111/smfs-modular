@@ -270,9 +270,21 @@ public class GhostFusionScreenHandler extends ScreenHandler {
         if (!result.success()) {
             // 先判失败：赌输时 grafted 也是 0，若先判「0 条」会被误报成
             // 「这些规律已经在物品上了」，看起来像成功了，实际啥都没进
-            player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
-                    + Math.round(result.chance() * 100) + "%（压制 " + (int) result.suppression()
-                    + " / 需求 " + (int) result.required() + "）"), true);
+            if (result.escaped()) {
+                // 鬼爬出来了：它已经是个实体，槽里自然空了
+                this.ghostSlot.setStack(0, ItemStack.EMPTY);
+                player.sendMessage(Text.literal("§4厉鬼复苏 §8压制不足，它从容器里爬了出来"), true);
+            } else {
+                double nextChance = 0.0D;
+                if (ghostType != null) {
+                    nextChance = com.example.smfsaddon.fusion.FusionEscape
+                            .chanceFor(player, ghostType.toString()) * 100.0D;
+                }
+                player.sendMessage(Text.literal("§c压制不足，赌输了 §8成功率 "
+                        + Math.round(result.chance() * 100) + "%（压制 " + (int) result.suppression()
+                        + " / 需求 " + (int) result.required() + "）§4 复苏 "
+                        + Math.round(nextChance) + "%"), true);
+            }
         } else if (result.grafted() == 0) {
             player.sendMessage(Text.literal("§7这些规律已经在物品上了"), true);
         } else if (result.lucky()) {

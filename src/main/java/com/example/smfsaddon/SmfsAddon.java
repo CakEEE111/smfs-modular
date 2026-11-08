@@ -75,7 +75,10 @@ public class SmfsAddon implements ModInitializer {
         });
         // 世界卸载时清掉交错用的影子实例，别让 ServerWorld 被静态表攥住
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(
-                server -> com.example.smfsaddon.crossing.GhostRuleCrossing.clearCache());
+                server -> {
+                    com.example.smfsaddon.crossing.GhostRuleCrossing.clearCache();
+                    com.example.smfsaddon.fusion.FusionEscape.clearCache();
+                });
         // 开服就先建好交错候选池，避免第一只鬼生成时卡一下
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(
                 server -> com.example.smfsaddon.crossing.GhostRuleCrossing.warmUp(server.getOverworld()));
