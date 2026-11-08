@@ -48,8 +48,13 @@ import java.util.Map;
  */
 public final class HauntedBlocks {
 
-    /** 判定范围（格） */
-    private static final double TRIGGER_RADIUS = 5.0D;
+    /**
+     * 判定范围（格）。实际值从配置读，这里是兜底。
+     *
+     * <p>改成 10 格之后，站在鬼方块附近更容易被"注意到" ——
+     * 5 格太近了，玩家往往已经踩过去才听见声音。
+     */
+    private static final double DEFAULT_TRIGGER_RADIUS = 10.0D;
 
     /**
      * 判定间隔：100 tick = 5 秒。
@@ -86,6 +91,14 @@ public final class HauntedBlocks {
 
     public static String debugSummary() {
         return "尝试 " + attempts + " 次，失败 " + failures + " 次，最后原因：" + lastReject;
+    }
+
+    private static double triggerRadius() {
+        try {
+            return com.example.smfsaddon.config.AddonConfig.get().haunt.triggerRadius;
+        } catch (RuntimeException exception) {
+            return DEFAULT_TRIGGER_RADIUS;
+        }
     }
 
     private static void reject(String reason) {
@@ -408,9 +421,10 @@ public final class HauntedBlocks {
             return;
         }
 
+        double radius = triggerRadius();
         double distance = player.squaredDistanceTo(
                 pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
-        if (distance > TRIGGER_RADIUS * TRIGGER_RADIUS) {
+        if (distance > radius * radius) {
             return;
         }
 

@@ -74,6 +74,8 @@ public final class AddonConfigScreen extends Screen {
         // 鬼方块
         rows.add(Row.toggle("野外鬼方块", () -> config.haunt.enabled,
                 value -> config.haunt.enabled = value));
+        rows.add(Row.integer("判定半径", () -> (int) config.haunt.triggerRadius,
+                value -> config.haunt.triggerRadius = value, 2, 2, 64));
         rows.add(Row.integer("野外数量", () -> config.haunt.initialCount,
                 value -> config.haunt.initialCount = (int) value, 1, 0, 64));
         rows.add(Row.integer("布置半径", () -> config.haunt.initialRadius,

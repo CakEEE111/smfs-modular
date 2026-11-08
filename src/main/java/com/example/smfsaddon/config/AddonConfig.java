@@ -134,6 +134,9 @@ public final class AddonConfig {
         /** 离出生点多近不放（格） */
         public int minSpawnDistance = 48;
 
+        /** 判定半径（格）：玩家进这个范围才开始判定与预警 */
+        public double triggerRadius = 10.0D;
+
         /** 埋在地表下的深度范围 */
         public int minDepth = 1;
         public int maxDepth = 4;
@@ -220,6 +223,7 @@ public final class AddonConfig {
         escape.baseChance = clamp(escape.baseChance, 0.0F, 1.0F);
         escape.stepChance = clamp(escape.stepChance, 0.0F, 1.0F);
 
+        haunt.triggerRadius = clamp(haunt.triggerRadius, 2.0D, 64.0D);
         haunt.initialCount = clamp(haunt.initialCount, 0, 256);
         haunt.newChunkChance = clamp(haunt.newChunkChance, 0.0D, 1.0D);
         haunt.maxTotal = clamp(haunt.maxTotal, 0, 4096);
