@@ -269,8 +269,11 @@ public final class HauntedBlocks {
         // 我们只在事件给的区块里取高度，需要的信息它都有。
 
         int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (top <= world.getBottomY() + 4) {
-            reject("高度图给出谷底 y=" + top + "（区块可能还没就绪）");
+        // 只排除"高度图给了个哨兵值"这一种情况。
+        // 早先写成 bottom+4，结果超平坦世界全被拒 —— 那种地形的表面本来就贴着底部，
+        // 贴着底部不等于"没就绪"。真正的判据是上面那条"上方必须是空气"。
+        if (top <= world.getBottomY()) {
+            reject("高度图给出哨兵值 y=" + top + "（区块可能还没就绪）");
             return null;
         }
         // 高度图在「区块还没生成完」时会返回谷底，那会让我们把鬼埋进基岩层。
@@ -294,8 +297,8 @@ public final class HauntedBlocks {
         // 最后一道：埋点必须离开世界底部足够远。
         // 高度图偶尔会在区块刚生成完时给出谷底值（实测出现过 y=-63 的落点），
         // 那一列的"地表"其实是基岩上方的深板岩，上面也确实有空气 —— 前两条判据拦不住。
-        if (target.getY() < world.getBottomY() + 8) {
-            reject("埋点太靠底 y=" + target.getY());
+        if (target.getY() <= world.getBottomY()) {
+            reject("埋点落在世界底部 y=" + target.getY());
             return null;
         }
         var targetState = world.getBlockState(target);
