@@ -36,6 +36,53 @@ import java.util.List;
 public final class GhostModulesCommand {
 
     private static final double SEARCH_RADIUS = 8.0D;
+    /**
+     * 给最近的鬼补上（或重抽）灵异交错。
+     *
+     * <p>两种用途：
+     *
+     * <ul>
+     *   <li><b>老存档</b>：模组装上之前就存在的鬼，装上后不会自动补 —— 站在它旁边敲一次就补上</li>
+     *   <li><b>想换组合</b>：加 {@code force}，先卸掉再重抽。只动 {@code crossing}，不碰别的模块</li>
+     * </ul>
+     */
+    private static int crossNearest(ServerCommandSource source, boolean force) {
+        GhostEntity ghost = findNearest(source);
+        if (ghost == null) {
+            source.sendError(Text.literal("8 格内没有找到鬼"));
+            return 0;
+        }
+
+        boolean had = GhostModules.has(ghost,
+                com.example.smfsaddon.ghost.module.impl.CrossingModule.ID);
+        if (had && !force) {
+            source.sendError(Text.literal("这只鬼已经有交错了，要重抽请加 force"));
+            return 0;
+        }
+        if (had) {
+            GhostModules.detach(ghost, com.example.smfsaddon.ghost.module.impl.CrossingModule.ID);
+        }
+
+        com.example.smfsaddon.crossing.GhostRuleCrossing.seed(GhostModules.of(ghost), ghost);
+
+        var data = GhostModules.get(ghost,
+                com.example.smfsaddon.ghost.module.impl.CrossingModule.ID);
+        if (data == null) {
+            int count = com.example.smfsaddon.crossing.GhostRuleCrossing
+                    .countFor(source.getWorld());
+            source.sendError(Text.literal(count <= 0
+                    ? "当前难度不产生交错（和平难度）"
+                    : "没有可借的候选，交错未挂载"));
+            return 0;
+        }
+
+        var types = com.example.smfsaddon.ghost.module.impl.CrossingModule.types(data);
+        var mechanisms = com.example.smfsaddon.ghost.module.impl.CrossingModule.mechanisms(data);
+        source.sendFeedback(() -> Text.literal("§a已交错 §8借来 " + types.size() + " 条规律 "
+                + types + "，" + mechanisms.size() + " 个机制 " + mechanisms), false);
+        return 1;
+    }
+
     /** 实体 ID 补全：直接列注册表，省得手打命名空间 */
     private static final com.mojang.brigadier.suggestion.SuggestionProvider<ServerCommandSource>
             ENTITY_SUGGESTIONS = (context, builder) ->
@@ -124,6 +171,10 @@ public final class GhostModulesCommand {
                                             Identifier id = IdentifierArgumentType.getIdentifier(context, "module");
                                             return detachNearest(context.getSource(), id);
                                         })))
+                        .then(CommandManager.literal("cross")
+                                .executes(context -> crossNearest(context.getSource(), false))
+                                .then(CommandManager.literal("force")
+                                        .executes(context -> crossNearest(context.getSource(), true))))
                         .then(CommandManager.literal("spawn")
                                 .then(CommandManager.argument("type", IdentifierArgumentType.identifier())
                                         .suggests(ENTITY_SUGGESTIONS)
