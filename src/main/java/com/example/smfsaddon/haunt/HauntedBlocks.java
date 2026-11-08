@@ -88,6 +88,92 @@ public final class HauntedBlocks {
     /** 异象可见范围（只给"身上有灵异物品"的人） */
     private static final double SIGHT_RADIUS = 8.0D;
 
+    // ---------------------------------------------------------------- 新区块
+
+    /**
+     * 待处理的新区块。
+     *
+     * <p>区块加载可能发生在别的线程，直接写 PersistentState 不安全，先入队，
+     * 统一在世界 tick 里处理。
+     */
+    private static final Map<ServerWorld, java.util.Queue<Long>> PENDING =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 每轮最多处理几个，避免进图时卡顿 */
+    private static final int ROLL_BUDGET = 16;
+
+    /** 区块加载时登记。真正会不会生成，在 tick 里按概率与总量上限决定 */
+    public static void onChunkLoad(ServerWorld world, int chunkX, int chunkZ) {
+        com.example.smfsaddon.config.AddonConfig.Haunt config =
+                com.example.smfsaddon.config.AddonConfig.get().haunt;
+        if (!config.enabled || config.newChunkChance <= 0.0D) {
+            return;
+        }
+        PENDING.computeIfAbsent(world, ignored -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                .add(chunkKey(chunkX, chunkZ));
+    }
+
+    private static void processPending(ServerWorld world) {
+        java.util.Queue<Long> queue = PENDING.get(world);
+        if (queue == null) {
+            return;
+        }
+        com.example.smfsaddon.config.AddonConfig.Haunt config =
+                com.example.smfsaddon.config.AddonConfig.get().haunt;
+        HauntStore store = HauntStore.of(world);
+
+        for (int i = 0; i < ROLL_BUDGET; i++) {
+            Long key = queue.poll();
+            if (key == null) {
+                return;
+            }
+            // 到顶就不再生成了 —— 这是防数据无限增长的硬闸
+            if (store.size() >= config.maxTotal) {
+                queue.clear();
+                return;
+            }
+            try {
+                rollChunk(world, store, config, (int) (key >> 32), (int) (long) key);
+            } catch (RuntimeException exception) {
+                com.example.smfsaddon.SmfsAddon.LOGGER.warn(
+                        "[smfsaddon] 新区块鬼方块生成失败：{}", exception.toString());
+            }
+        }
+    }
+
+    /** 单个区块掷骰 */
+    private static void rollChunk(ServerWorld world, HauntStore store,
+                                  com.example.smfsaddon.config.AddonConfig.Haunt config,
+                                  int chunkX, int chunkZ) {
+        // 每区块只处理一次：否则重复加载会反复掷骰
+        if (!store.markRolled(chunkKey(chunkX, chunkZ))) {
+            return;
+        }
+        if (world.getRandom().nextDouble() >= config.newChunkChance) {
+            return;
+        }
+
+        int x = chunkX * 16 + world.getRandom().nextInt(16);
+        int z = chunkZ * 16 + world.getRandom().nextInt(16);
+        BlockPos target = pickSpot(world, x, z, config);
+        if (target == null) {
+            return;
+        }
+        List<Identifier> pool = com.example.smfsaddon.crossing.GhostRuleCrossing.ghostTypeIds(world);
+        if (pool.isEmpty()) {
+            return;
+        }
+        Identifier ghostType = pool.get(world.getRandom().nextInt(pool.size()));
+        store.put(target, new HauntStore.Entry(ghostType));
+        com.example.smfsaddon.SmfsAddon.LOGGER.info(
+                "[smfsaddon] 野鬼方块（新区块）：{} 埋在 {}（{}）", ghostType,
+                target.toShortString(), world.getRegistryKey().getValue());
+    }
+
+    private static long chunkKey(int chunkX, int chunkZ) {
+        return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
+    }
+
     // ---------------------------------------------------------------- 世界生成
 
     /**
@@ -221,6 +307,8 @@ public final class HauntedBlocks {
             return;
         }
 
+        processPending(world);
+
         HauntStore store = HauntStore.of(world);
         if (store.haunts().isEmpty()) {
             return;
@@ -268,10 +356,6 @@ public final class HauntedBlocks {
         for (BlockPos pos : drop) {
             store.remove(pos);
         }
-    }
-
-    private static long chunkKey(int chunkX, int chunkZ) {
-        return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
     }
 
     /** 单个玩家与单个鬼方块之间的一次检查 */
@@ -419,6 +503,8 @@ public final class HauntedBlocks {
      * 这也是为什么不用方块自带光照 —— 那会让所有人都重算光照。
      */
     public static void spawnHints(ServerWorld world) {
+        processPending(world);
+
         HauntStore store = HauntStore.of(world);
         if (store.haunts().isEmpty()) {
             return;
@@ -482,6 +568,6 @@ public final class HauntedBlocks {
 
     /** 目前没有需要清空的静态缓存，保留方法给上层统一调用 */
     public static void clearCache() {
-        // 目前不持有跨世界引用
+        PENDING.clear();
     }
 }

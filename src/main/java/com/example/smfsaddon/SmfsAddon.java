@@ -77,6 +77,11 @@ public class SmfsAddon implements ModInitializer {
             com.example.smfsaddon.ghost.module.RuleCodex.forget(handler.getPlayer().getUuid());
             com.example.smfsaddon.item.FusedGhostSlots.forget(handler.getPlayer().getUuid());
         });
+        // 鬼方块：新区块概率生成（写入推迟到世界 tick）
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register(
+                (world, chunk) -> com.example.smfsaddon.haunt.HauntedBlocks
+                        .onChunkLoad(world, chunk.getPos().x, chunk.getPos().z));
+
         // 鬼方块：判定与异象
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_WORLD_TICK.register(world -> {
             com.example.smfsaddon.haunt.HauntedBlocks.tick(world);

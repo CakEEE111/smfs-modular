@@ -78,6 +78,10 @@ public final class AddonConfigScreen extends Screen {
                 value -> config.haunt.initialCount = (int) value, 1, 0, 64));
         rows.add(Row.integer("布置半径", () -> config.haunt.initialRadius,
                 value -> config.haunt.initialRadius = (int) value, 64, 32, 2048));
+        rows.add(Row.percent("新区块概率", () -> config.haunt.newChunkChance,
+                value -> config.haunt.newChunkChance = value));
+        rows.add(Row.integer("世界总量上限", () -> config.haunt.maxTotal,
+                value -> config.haunt.maxTotal = (int) value, 16, 0, 4096));
     }
 
     @Override

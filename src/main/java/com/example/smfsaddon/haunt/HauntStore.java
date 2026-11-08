@@ -39,6 +39,14 @@ public final class HauntStore extends PersistentState {
     /** 世界是否已经布置过初始的鬼方块。只在创建世界时布置一次 */
     private boolean initialized;
 
+    /**
+     * 已经处理过的区块（掷过骰或跳过）。
+     *
+     * <p>只在新区块生成功能开启时才需要，但一直维护 —— 关掉再打开时不会
+     * 把老区块重新掷一遍。
+     */
+    private final java.util.Set<Long> rolled = new java.util.HashSet<>();
+
     public static HauntStore of(net.minecraft.server.world.ServerWorld world) {
         return world.getPersistentStateManager().getOrCreate(
                 HauntStore::fromNbt, HauntStore::new, ID);
@@ -46,6 +54,23 @@ public final class HauntStore extends PersistentState {
 
     public Map<BlockPos, Entry> haunts() {
         return haunts;
+    }
+
+    public int size() {
+        return haunts.size();
+    }
+
+    /**
+     * 标记这个区块处理过。
+     *
+     * @return {@code true} 表示第一次（调用方可以继续掷骰）
+     */
+    public boolean markRolled(long chunkKey) {
+        if (!rolled.add(chunkKey)) {
+            return false;
+        }
+        markDirty();
+        return true;
     }
 
     public boolean isInitialized() {
@@ -121,12 +146,22 @@ public final class HauntStore extends PersistentState {
         nbt.put("Haunts", list);
 
         nbt.putBoolean("Initialized", initialized);
+
+        long[] keys = new long[rolled.size()];
+        int index = 0;
+        for (long key : rolled) {
+            keys[index++] = key;
+        }
+        nbt.putLongArray("Rolled", keys);
         return nbt;
     }
 
     private static HauntStore fromNbt(NbtCompound nbt) {
         HauntStore store = new HauntStore();
         store.initialized = nbt.getBoolean("Initialized");
+        for (long key : nbt.getLongArray("Rolled")) {
+            store.rolled.add(key);
+        }
         NbtList list = nbt.getList("Haunts", NbtElement.COMPOUND_TYPE);
         for (int index = 0; index < list.size(); index++) {
             NbtCompound one = list.getCompound(index);

@@ -110,8 +110,23 @@ public final class AddonConfig {
         /** 总开关 */
         public boolean enabled = true;
 
-        /** 世界生成时布置几个（之后不再自动增加） */
+        /** 世界生成时布置几个 */
         public int initialCount = 8;
+
+        /**
+         * 之后新加载的区块，再生成的概率。
+         *
+         * <p>0 表示关闭 —— 那样整个世界只有初始那几个。想"边探索边偶遇"就调到 0.02 左右。
+         */
+        public double newChunkChance = 0.0D;
+
+        /**
+         * 单个世界的总量上限。
+         *
+         * <p>这是防"数据随探索无限增长"的硬闸：到顶之后无论概率多大都不再生成。
+         * 默认 128，够玩家到处碰到，又不会让存档里的表失控。
+         */
+        public int maxTotal = 128;
 
         /** 布置范围半径（以出生点为中心，格） */
         public int initialRadius = 256;
@@ -206,6 +221,8 @@ public final class AddonConfig {
         escape.stepChance = clamp(escape.stepChance, 0.0F, 1.0F);
 
         haunt.initialCount = clamp(haunt.initialCount, 0, 256);
+        haunt.newChunkChance = clamp(haunt.newChunkChance, 0.0D, 1.0D);
+        haunt.maxTotal = clamp(haunt.maxTotal, 0, 4096);
         haunt.initialRadius = clamp(haunt.initialRadius, 32, 8192);
         haunt.minSpawnDistance = clamp(haunt.minSpawnDistance, 0, 10000);
         haunt.minDepth = clamp(haunt.minDepth, 0, 16);
