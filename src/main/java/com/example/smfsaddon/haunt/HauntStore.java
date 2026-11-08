@@ -36,8 +36,16 @@ public final class HauntStore extends PersistentState {
 
     private final Map<BlockPos, Entry> haunts = new HashMap<>();
 
-    /** 世界是否已经布置过初始的鬼方块。只在创建世界时布置一次 */
+    /** 世界是否已经布置过初始的鬼方块 */
     private boolean initialized;
+
+    /**
+     * 初始布置的剩余配额。
+     *
+     * <p>改成"边加载边消耗"之后，初始那几个不再在开服时一次性埋完，
+     * 而是等区块自然加载再放 —— 这样我们永远不会主动触发区块生成。
+     */
+    private int remainingInitial = -1;
 
     /**
      * 已经处理过的区块（掷过骰或跳过）。
@@ -54,6 +62,15 @@ public final class HauntStore extends PersistentState {
 
     public Map<BlockPos, Entry> haunts() {
         return haunts;
+    }
+
+    public int remainingInitial() {
+        return remainingInitial;
+    }
+
+    public void setRemainingInitial(int value) {
+        remainingInitial = value;
+        markDirty();
     }
 
     public int size() {
@@ -146,6 +163,7 @@ public final class HauntStore extends PersistentState {
         nbt.put("Haunts", list);
 
         nbt.putBoolean("Initialized", initialized);
+        nbt.putInt("RemainingInitial", remainingInitial);
 
         long[] keys = new long[rolled.size()];
         int index = 0;
@@ -159,6 +177,8 @@ public final class HauntStore extends PersistentState {
     private static HauntStore fromNbt(NbtCompound nbt) {
         HauntStore store = new HauntStore();
         store.initialized = nbt.getBoolean("Initialized");
+        store.remainingInitial = nbt.contains("RemainingInitial")
+                ? nbt.getInt("RemainingInitial") : -1;
         for (long key : nbt.getLongArray("Rolled")) {
             store.rolled.add(key);
         }

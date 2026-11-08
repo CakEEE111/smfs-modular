@@ -149,7 +149,20 @@ public final class HauntedBlocks {
         if (!store.markRolled(chunkKey(chunkX, chunkZ))) {
             return;
         }
-        if (world.getRandom().nextDouble() >= config.newChunkChance) {
+        // 初始配额优先：在出生点半径内的区块直接布置，不掷骰
+        boolean fromQuota = false;
+        int remaining = store.remainingInitial();
+        if (remaining > 0) {
+            BlockPos spawn = world.getSpawnPos();
+            double distanceSq = spawn.getSquaredDistance(
+                    chunkX * 16 + 8, spawn.getY(), chunkZ * 16 + 8);
+            double minDistance = Math.min(config.minSpawnDistance, config.initialRadius);
+            if (distanceSq >= minDistance * minDistance
+                    && distanceSq <= (double) config.initialRadius * config.initialRadius) {
+                fromQuota = true;
+            }
+        }
+        if (!fromQuota && world.getRandom().nextDouble() >= config.newChunkChance) {
             return;
         }
 
@@ -165,9 +178,12 @@ public final class HauntedBlocks {
         }
         Identifier ghostType = pool.get(world.getRandom().nextInt(pool.size()));
         store.put(target, new HauntStore.Entry(ghostType));
+        if (fromQuota) {
+            store.setRemainingInitial(store.remainingInitial() - 1);
+        }
         com.example.smfsaddon.SmfsAddon.LOGGER.info(
-                "[smfsaddon] 野鬼方块（新区块）：{} 埋在 {}（{}）", ghostType,
-                target.toShortString(), world.getRegistryKey().getValue());
+                "[smfsaddon] 野鬼方块{}：{} 埋在 {}（{}）", fromQuota ? "（初始）" : "（新区块）",
+                ghostType, target.toShortString(), world.getRegistryKey().getValue());
     }
 
     private static long chunkKey(int chunkX, int chunkZ) {
@@ -184,9 +200,9 @@ public final class HauntedBlocks {
      * <p>按区块概率动态生成会让存档里的数据随探索无限增长，而且老存档会被
      * "事后补种" —— 玩家自己基地的地下突然冒出鬼，很难接受。
      *
-     * <p>改成一次性：每个世界布置固定数量，位置由世界种子决定（同一个种子
-     * 每次开出来一样，方便复现）。之后无论玩家探索多远，都不会再自动增加 ——
-     * 想加只能靠 {@code /ghostmodules haunt}。
+     * <p>这里只登记"还欠几个"，真正放置交给区块自然加载时的逻辑，见
+     * {@link #rollChunk}。这样我们永远不会主动触发区块生成 ——
+     * 别的附属在世界生成里写越界方块时，就不会被我们的调用栈拉出来背锅。
      */
     public static void initializeWorld(ServerWorld world) {
         com.example.smfsaddon.config.AddonConfig.Haunt config =
@@ -204,40 +220,10 @@ public final class HauntedBlocks {
             return;
         }
 
-        BlockPos spawn = world.getSpawnPos();
-        java.util.Random random = new java.util.Random(world.getSeed() ^ 0x5DEECE66DL);
-        int placed = 0;
-        int attempts = 0;
-        int maxAttempts = Math.max(32, config.initialCount * 40);
-
-        while (placed < config.initialCount && attempts < maxAttempts) {
-            attempts++;
-            double angle = random.nextDouble() * Math.PI * 2.0D;
-            int minDistance = Math.min(config.minSpawnDistance, config.initialRadius);
-            double distance = minDistance
-                    + random.nextDouble() * Math.max(1, config.initialRadius - minDistance);
-            int x = spawn.getX() + (int) Math.round(Math.cos(angle) * distance);
-            int z = spawn.getZ() + (int) Math.round(Math.sin(angle) * distance);
-
-            BlockPos target = pickSpot(world, x, z, config);
-            if (target == null) {
-                continue;
-            }
-            List<Identifier> pool = com.example.smfsaddon.crossing.GhostRuleCrossing
-                    .ghostTypeIds(world);
-            if (pool.isEmpty()) {
-                return;
-            }
-            Identifier ghostType = pool.get(random.nextInt(pool.size()));
-            store.put(target, new HauntStore.Entry(ghostType));
-            placed++;
-            com.example.smfsaddon.SmfsAddon.LOGGER.info(
-                    "[smfsaddon] 野鬼方块：{} 埋在 {}（{}）", ghostType, target.toShortString(),
-                    world.getRegistryKey().getValue());
-        }
-
+        store.setRemainingInitial(config.initialCount);
         com.example.smfsaddon.SmfsAddon.LOGGER.info(
-                "[smfsaddon] 世界初始化完成，布置 {} 个鬼方块（尝试 {} 次）", placed, attempts);
+                "[smfsaddon] 世界初始化：待布置 {} 个鬼方块（随区块自然加载逐步放置）",
+                config.initialCount);
     }
 
     /**
@@ -249,8 +235,13 @@ public final class HauntedBlocks {
                                      com.example.smfsaddon.config.AddonConfig.Haunt config) {
         int chunkX = x >> 4;
         int chunkZ = z >> 4;
-        // 需要真实地形才能取表面高度，这里同步生成区块（只在世界创建时发生一次）
-        world.getChunk(chunkX, chunkZ);
+        // 绝不主动加载/生成区块。
+        // 让区块生成的是别人（玩家的探索），我们只在已加载的区块里取高度 ——
+        // 否则会把别人的世界生成特征拖进我们的调用栈，那些越界写方块的附属
+        // 就会成片报 "Detected setBlock in a far chunk"。
+        if (!world.isChunkLoaded(chunkX, chunkZ)) {
+            return null;
+        }
 
         int top = world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
         // 高度图在「区块还没生成完」时会返回谷底，那会让我们把鬼埋进基岩层。
