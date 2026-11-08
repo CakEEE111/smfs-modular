@@ -64,6 +64,9 @@ public final class HauntedBlocks {
      *
      * <p>只有 10%：鬼还被关在方块里，只能隔着砖缝伸一只手出来，
      * 不该和它本体破封而出时的威力一样。真正的全额伤害留给"复苏之后"。
+     *
+     * <p>这个系数乘的是<b>灵异伤害</b>（{@code getSpiritualDamage}），不是物理攻击力 ——
+     * 乘完之后仍走本体的 {@code PlayerEvents.handleSpiritDamage} 结算。
      */
     private static final float BLOCK_DAMAGE_RATIO = 0.10F;
 
@@ -200,12 +203,18 @@ public final class HauntedBlocks {
                 return false;
             }
 
-            // 伤害按 10% 结算：不能直接 tryAttack，那是全额伤害。
-            // 走 player.damage 仍然经过原版护甲/附魔/吸收，只是数值被压过。
-            float full = (float) ghost.getAttributeValue(
-                    net.minecraft.entity.attribute.EntityAttributes.GENERIC_ATTACK_DAMAGE);
-            float amount = Math.max(1.0F, full * BLOCK_DAMAGE_RATIO);
-            boolean hit = player.damage(ghost.getDamageSources().mobAttack(ghost), amount);
+            // 走本体的灵异伤害结算，不是普通物理伤害。
+            //
+            // 本体对玩家的灵异伤害有一个统一入口 PlayerEvents.handleSpiritDamage：
+            // 双曲线衰减（伤害² / (伤害 + 灵异抗性)），还会触发鬼寿衣、影子鬼这些被动。
+            // 自己 player.damage 会绕过这一整套，玩家的灵异抗性堆了也没用。
+            float spirit = ghost.getSpiritualDamage() * BLOCK_DAMAGE_RATIO;
+            net.minecraft.entity.damage.DamageSource source =
+                    com.xie.smfs.damage.ModDamageSources.ghost(world);
+            float actual = com.xie.smfs.common.events.PlayerEvents
+                    .handleSpiritDamage(player, spirit, spirit, source);
+            // 返回 0 表示被鬼寿衣之类完全吃掉，这一下不算命中
+            boolean hit = actual > 0.0F && player.damage(source, actual);
 
             if (hit) {
                 entry.revival += REVIVAL_PER_HIT;
