@@ -47,7 +47,15 @@ public final class GhostModulesCommand {
                 .query(serverWorld, center, radius, 10);
 
         if (found.isEmpty()) {
+            var config = com.example.smfsaddon.config.AddonConfig.get().haunt;
+            var store = com.example.smfsaddon.haunt.HauntStore.of(serverWorld);
             source.sendFeedback(() -> Text.literal("§7" + (int) radius + " 格内没有鬼方块"), false);
+            // 诊断行：分不清"世界里没有"和"这个范围没有"时，看这一行
+            source.sendFeedback(() -> Text.literal(
+                    "§8调试：世界共 " + store.size() + " 个"
+                            + " | 剩余初始配额 " + store.remainingInitial()
+                            + " | 新区块概率 " + config.newChunkChance
+                            + " | 开关 " + (config.enabled ? "开" : "关")), false);
             return 0;
         }
 
