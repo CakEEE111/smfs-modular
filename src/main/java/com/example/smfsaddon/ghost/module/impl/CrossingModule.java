@@ -74,6 +74,7 @@ public final class CrossingModule implements GhostOnlyModule {
             return;
         }
         data.custom().putString(KEY_TYPES, join(types));
+        data.markChanged();
     }
 
     /**
@@ -91,6 +92,7 @@ public final class CrossingModule implements GhostOnlyModule {
             return;
         }
         data.custom().putString(KEY_MECHANISMS, join(ids));
+        data.markChanged();
     }
 
     private static List<Identifier> parse(GhostModuleData data, String key) {

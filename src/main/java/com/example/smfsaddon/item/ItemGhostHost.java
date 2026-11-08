@@ -76,17 +76,25 @@ public final class ItemGhostHost implements LingyiHost, SpatialHost, TickHost, P
     /**
      * 把改动写回物品 NBT。
      *
-     * <p>判据不是「有没有显式 markDirty」，而是「有没有内容需要落盘」。
-     * 原因：模块可能被 {@code GhostModuleDispatcher.attach} 直接放进容器，
-     * 那条路径不会经过 {@link #markDirty()}；而复苏值又是每 tick 变的。
-     * 早先只看 dirty 标志，导致物品上的模块与复苏值<b>一次都没被写进 NBT</b>，
-     * 于是每次 open() 都从空 NBT 重建宿主，复苏值每 10 tick 被清零，
-     * 永远到不了阈值 —— 表现就是「挂了模块却毫无反应」。
+     * <p>判据演进过两次：
+     *
+     * <ol>
+     *   <li>只看 {@link #markDirty()} —— 漏掉 {@code attach} 那条路径，
+     *       模块一次都没落盘，复苏值每 10 tick 被清零；</li>
+     *   <li>改成「有内容就写」 —— 正确但浪费：每次攻击都要序列化全部模块、
+     *       并把物品标记为变过，服务端还要多发一个同步包；</li>
+     *   <li>现在：结构增删、复苏值/强度变化、模块自报的 {@code markChanged()}，
+     *       三者任一才写。</li>
+     * </ol>
      *
      * @return 是否真的写了
      */
     public boolean flush() {
-        if (!dirty && modules.isEmpty() && pluginState.isEmpty()) {
+        // 判据是「内容真的变了」：结构增删由容器置位，复苏值/强度由 setter 置位，
+        // 手写 custom() 的模块自己调 markChanged()。
+        // 只读遍历（大多数攻击规律只是看一眼）不会置位，于是打一下不再重写整个 NBT。
+        boolean changed = modules.consumeChanged();
+        if (!dirty && !changed) {
             return false;
         }
         NbtCompound root = stack.getOrCreateSubNbt(KEY_ROOT);

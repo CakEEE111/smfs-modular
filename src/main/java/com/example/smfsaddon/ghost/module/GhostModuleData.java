@@ -23,6 +23,9 @@ public final class GhostModuleData {
     private double revival;
     private final NbtCompound custom;
 
+    /** 内容自上次落盘以来是否变过 */
+    private boolean changed;
+
     public GhostModuleData(Identifier moduleId, double intensity, double revival, NbtCompound custom) {
         this.moduleId = moduleId;
         this.intensity = intensity;
@@ -43,7 +46,11 @@ public final class GhostModuleData {
     }
 
     public void setIntensity(double value) {
+        if (value == this.intensity) {
+            return;
+        }
         this.intensity = value;
+        markChanged();
     }
 
     public double revival() {
@@ -51,11 +58,19 @@ public final class GhostModuleData {
     }
 
     public void setRevival(double value) {
+        if (value == this.revival) {
+            return;
+        }
         this.revival = value;
+        markChanged();
     }
 
     public void addRevival(double amount) {
+        if (amount == 0.0D) {
+            return;
+        }
         this.revival += amount;
+        markChanged();
     }
 
     /**
@@ -63,6 +78,21 @@ public final class GhostModuleData {
      */
     public NbtCompound custom() {
         return custom;
+    }
+
+    /**
+     * 手写 {@link #custom()} 的模块必须显式调用 ——
+     * NbtCompound 的 put 我们拦不到，只能靠调用方声明。
+     */
+    public void markChanged() {
+        changed = true;
+    }
+
+    /** 取走并清除变更标记 */
+    public boolean consumeChanged() {
+        boolean value = changed;
+        changed = false;
+        return value;
     }
 
     public NbtCompound writeNbt() {

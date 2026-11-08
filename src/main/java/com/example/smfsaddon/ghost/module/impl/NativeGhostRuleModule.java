@@ -85,11 +85,13 @@ public final class NativeGhostRuleModule implements SpatialModule {
         String existing = data.custom().getString(KEY_TYPES);
         if (existing.isEmpty()) {
             data.custom().putString(KEY_TYPES, path);
+            data.markChanged();
             return;
         }
         String padded = "," + existing + ",";
         if (!padded.contains("," + path + ",")) {
             data.custom().putString(KEY_TYPES, existing + "," + path);
+            data.markChanged();
         }
     }
 

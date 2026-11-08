@@ -29,6 +29,8 @@ public final class GhostModuleContainer {
      */
     private static final int SCHEMA_VERSION = 1;
 
+    private boolean structuralChanged;
+
     private final Map<Identifier, GhostModuleData> modules = new LinkedHashMap<>();
 
     public GhostModuleData get(Identifier moduleId) {
@@ -68,14 +70,37 @@ public final class GhostModuleContainer {
 
     public void put(GhostModuleData data) {
         modules.put(data.moduleId(), data);
+        structuralChanged = true;
     }
 
     public GhostModuleData remove(Identifier moduleId) {
-        return modules.remove(moduleId);
+        GhostModuleData removed = modules.remove(moduleId);
+        if (removed != null) {
+            structuralChanged = true;
+        }
+        return removed;
     }
 
     public void clear() {
+        if (!modules.isEmpty()) {
+            structuralChanged = true;
+        }
         modules.clear();
+    }
+
+    /**
+     * 取走并清除「自上次落盘以来有没有变过」。
+     *
+     * <p>判定分两层：容器结构（增删模块）与模块自身（复苏值、强度、私有状态）。
+     * 只读遍历不会置位 —— 这是「打一下但什么都没变就不写 NBT」的前提。
+     */
+    public boolean consumeChanged() {
+        boolean changed = structuralChanged;
+        structuralChanged = false;
+        for (GhostModuleData data : modules.values()) {
+            changed |= data.consumeChanged();
+        }
+        return changed;
     }
 
     public NbtCompound writeNbt() {

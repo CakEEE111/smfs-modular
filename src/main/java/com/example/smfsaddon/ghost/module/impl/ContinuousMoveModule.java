@@ -38,12 +38,16 @@ public final class ContinuousMoveModule extends EnvGateModule {
         long now = context.ticks();
 
         if (player.getVelocity().horizontalLengthSquared() < MOVING_SQ) {
-            state.putLong(key, 0L);
+            if (state.getLong(key) != 0L) {
+                state.putLong(key, 0L);
+                context.markChanged();
+            }
             return false;
         }
         long start = state.getLong(key);
         if (start == 0L) {
             state.putLong(key, now);
+            context.markChanged();
             return false;
         }
         return now - start >= MOVE_TICKS;

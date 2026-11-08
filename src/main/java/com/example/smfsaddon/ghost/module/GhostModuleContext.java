@@ -141,6 +141,16 @@ public final class GhostModuleContext {
     /**
      * 规则私有的持久化状态，随宿主存档一起保存。
      */
+    /**
+     * 声明"我改了 {@link #state()}"。
+     *
+     * <p>NbtCompound 的 put 我们拦不到，所以模块手写状态后必须自己喊一声，
+     * 否则物品宿主 flush 时会认为没变、不落盘，状态下次 open() 就丢了。
+     */
+    public void markChanged() {
+        data.markChanged();
+    }
+
     public NbtCompound state() {
         return data.custom();
     }
