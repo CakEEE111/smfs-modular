@@ -1,0 +1,33 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.example.smfsaddon.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "GhostEntityModuleMixin",
+    "SmfsInitializerMixin",
+    "ItemStackUseMixin",
+    "ServerPlayerInteractionMixin",
+    "PlayerDamageMixin",
+    "PlayerEventsGhostMixin",
+    "GhostDomainManagerSkillMixin",
+    "ScapegoatLevelMixin",
+    "TameableItemAPISlotsMixin"
+  ],
+  "client": [
+    "CreateWorldScreenMixin",
+    "PlayerSsjHairMixin",
+    "GhostControlScreenMixin",
+    "ItemTooltipMixin",
+    "PlayerHeadHideMixin",
+    "SkinLayerSwapMixin",
+    "ArmRenderProbeMixin",
+    "CameraLockMixin",
+    "CameraAccessor",
+    "CeremonyInputLockMixin",
+    "CeremonyInteractLockMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

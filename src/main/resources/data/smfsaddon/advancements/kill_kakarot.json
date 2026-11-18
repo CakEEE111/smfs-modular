@@ -1,0 +1,27 @@
+{
+  "parent": "smfsaddon:obtain_container",
+  "display": {
+    "icon": {
+      "item": "minecraft:netherite_sword"
+    },
+    "title": {
+      "translate": "advancements.smfsaddon.kill_kakarot.title"
+    },
+    "description": {
+      "translate": "advancements.smfsaddon.kill_kakarot.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "killed": {
+      "trigger": "minecraft:player_killed_entity",
+      "conditions": {
+        "entity": {
+          "type": "smfsaddon:kakarot_ghost"
+        }
+      }
+    }
+  }
+}

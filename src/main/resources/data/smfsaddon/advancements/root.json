@@ -1,0 +1,22 @@
+{
+  "display": {
+    "icon": {
+      "item": "smfsaddon:kakarot_ghost"
+    },
+    "title": {
+      "translate": "advancements.smfsaddon.root.title"
+    },
+    "description": {
+      "translate": "advancements.smfsaddon.root.description"
+    },
+    "background": "minecraft:textures/block/blackstone.png",
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "tick": {
+      "trigger": "minecraft:tick"
+    }
+  }
+}

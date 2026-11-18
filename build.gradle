@@ -1,0 +1,57 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    // 国内镜像，加速依赖解析
+    maven { url "https://maven.aliyun.com/repository/public/" }
+    maven { url "https://maven.aliyun.com/repository/central/" }
+    maven { url "https://repo.huaweicloud.com/repository/maven/" }
+    // GeckoLib（神秘复苏依赖它做骨骼动画）
+    maven { url "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+
+    // ★ 本体模组：本地 jar 依赖。
+    // Loom 会自动把这份 intermediary 字节码重映射成 yarn 名称，
+    // 所以你在代码里可以直接 import com.xie.smfs.* 并看到可读的参数名。
+    modImplementation files("libs/smfs-1.5.0.jar")
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 17
+    it.options.encoding = "UTF-8"
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

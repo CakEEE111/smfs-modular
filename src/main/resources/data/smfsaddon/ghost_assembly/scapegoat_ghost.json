@@ -1,0 +1,7 @@
+{
+  "_comment": "替死鬼：合入后携带替死模块（直接调用本体 ScapegoatGhostItem 的被动逻辑）。",
+  "entity": "smfs:scapegoat_ghost",
+  "modules": [
+    "smfsaddon:scapegoat"
+  ]
+}

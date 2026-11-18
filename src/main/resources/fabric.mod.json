@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "smfsaddon",
+	"version": "${version}",
+	"name": "厉鬼模块化",
+	"description": "《神秘复苏》的非官方附属：把厉鬼装进任何物品。融合词条、技能继承、灵异伤害、灵异交错，以及一只会变身的卡卡罗特鬼。",
+	"authors": [
+		"大肥鱼"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.example.smfsaddon.SmfsAddon"
+		],
+		"client": [
+			"com.example.smfsaddon.client.SmfsAddonClient"
+		]
+	},
+	"mixins": [
+		"smfsaddon.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.14.21",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*",
+		"geckolib": ">=4.2.4",
+		"smfs": ">=1.5.0"
+	}
+}

@@ -1,0 +1,29 @@
+{
+  "pijiagu_prelude": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "smfsaddon:pijiagu_prelude",
+        "stream": true
+      }
+    ]
+  },
+  "pijiagu_wedding": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "smfsaddon:pijiagu_wedding",
+        "stream": true
+      }
+    ]
+  },
+  "pijiagu_suona": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "smfsaddon:pijiagu_suona",
+        "stream": false
+      }
+    ]
+  }
+}

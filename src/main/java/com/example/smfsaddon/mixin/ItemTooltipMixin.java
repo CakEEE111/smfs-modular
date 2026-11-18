@@ -1,0 +1,107 @@
+package com.example.smfsaddon.mixin;
+
+import com.example.smfsaddon.ghost.module.GhostModule;
+import com.example.smfsaddon.ghost.module.GhostModuleRegistry;
+import com.example.smfsaddon.item.GhostNames;
+import com.example.smfsaddon.item.ItemGhostHost;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+
+/**
+ * 给带规律的物品加词条。
+ *
+ * <p>只显示「里面是哪几只鬼」。模块名是实现细节，玩家不关心，
+ * 而且一条规律可能由多只鬼提供，按模块列反而会撒谎。
+ *
+ * <p>名字解析在 {@link GhostNames}，技能面板复用同一套 —— 早先这里私有一份，
+ * 面板那边却直接打原始 ID，同一个物品在词条里是「完整鬼影」、在面板里是
+ * {@code complete_shadow_ghost}，看着像两个东西。
+ *
+ * <h2>为什么挂 {@code ItemStack#getTooltip}，而不是 {@code Item#appendTooltip}</h2>
+ *
+ * <p>后者只对「没有重写 appendTooltip 的物品」生效。盾牌（{@code ShieldItem}）、
+ * 旗帜这类重写了该方法<b>且不调 super</b> 的物品，注入点根本不会执行 ——
+ * 表现就是「替死鬼融进盾牌，词条什么都不显示」。
+ *
+ * <p>{@code ItemStack#getTooltip} 是所有物品的唯一出口，挂这里一劳永逸。
+ */
+@Mixin(ItemStack.class)
+public abstract class ItemTooltipMixin {
+
+    @Inject(method = "getTooltip", at = @At("RETURN"))
+    private void smfsaddon$appendModuleEntries(PlayerEntity player, TooltipContext context,
+                                               CallbackInfoReturnable<List<Text>> callbackInfo) {
+        ItemStack stack = (ItemStack) (Object) this;
+        List<Text> tooltip = callbackInfo.getReturnValue();
+        if (tooltip == null) {
+            return;
+        }
+
+        List<Identifier> modules = ItemGhostHost.moduleIds(stack);
+        if (modules.isEmpty()) {
+            return;
+        }
+
+        List<Text> lines = new ArrayList<>();
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+
+        for (String ghostType : ItemGhostHost.boundGhostTypes(stack)) {
+            String name = GhostNames.of(ghostType);
+            if (!seen.add(name)) {
+                continue;
+            }
+            lines.add(Text.literal("§8· §b" + name));
+        }
+
+        // 没有绑定鬼的物品（比如只有手写模块的鬼灯笼），退回显示模块名
+        if (lines.isEmpty()) {
+            for (Identifier moduleId : modules) {
+                if ("smfsaddon:native_rule".equals(moduleId.toString())) {
+                    continue;
+                }
+                GhostModule module = GhostModuleRegistry.get(moduleId);
+                lines.add(Text.literal("§8· §b"
+                        + (module == null ? moduleId.getPath() : module.displayName())));
+            }
+        }
+
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        // 灵异伤害：与本体灵异武器同一套模型 —— 基础值 + 玩家灵异伤害 × 继承倍率
+        float base = com.example.smfsaddon.item.GhostSpiritPower.baseOf(stack);
+        if (base > 0.0F) {
+            float inherit = com.example.smfsaddon.item.GhostSpiritPower.inheritOf(stack);
+            lines.add(Text.literal("§8· §7基础灵异伤害 §c+" + String.format("%.1f", base)));
+            lines.add(Text.literal("§8· §7继承倍率 §d+"
+                    + String.format("%.0f", inherit * 100) + ".0%"));
+        }
+
+        // 复苏度不给数字：它是"感觉得到、量不出来"的东西。
+        // 只在真的躁起来时给一句话 —— 玩家该警觉，但不该能算准还有几刀。
+        double agitation = com.example.smfsaddon.fusion.ItemResonance.agitation(stack);
+        if (agitation >= 0.80D) {
+            tooltip.add(Text.literal("§4这把东西在你手里发烫"));
+        } else if (agitation >= 0.50D) {
+            tooltip.add(Text.literal("§c它在你手里有些躁动"));
+        } else if (agitation >= 0.20D) {
+            tooltip.add(Text.literal("§7它似乎不太安分"));
+        }
+
+        tooltip.add(Text.literal(""));
+        tooltip.add(Text.literal("§8灵异词条 ×" + ItemGhostHost.boundGhostTypes(stack).size()));
+        tooltip.addAll(lines);
+    }
+}

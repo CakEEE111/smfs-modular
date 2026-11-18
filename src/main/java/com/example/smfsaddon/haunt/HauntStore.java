@@ -1,0 +1,200 @@
+package com.example.smfsaddon.haunt;
+
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.PersistentState;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 世界存档里的「鬼方块」表：坐标 → 里面关着哪只鬼。
+ *
+ * <h2>为什么不做成新方块</h2>
+ *
+ * <p>鬼方块要和原地形一模一样 —— 老家的平原还是草方块，地底还是原石。
+ * 做成新方块就得给每个被替换的方块配一套模型和贴图，工程量和美术成本都不划算。
+ *
+ * <p>所以这里只往区块存档里挂数据：<b>方块本身没变，变的是它下面的位置被记了一笔</b>。
+ * 存储用维度级的 {@link PersistentState}，随世界保存、存档迁移也跟着走。
+ *
+ * <h2>字段</h2>
+ *
+ * <ul>
+ *   <li>{@code ghostType} 里面关着哪只鬼；</li>
+ *   <li>{@code judged} 上次判定的 tick，用来控制节奏；</li>
+ *   <li>{@code revival} 复苏进度，满了就自己破封；</li>
+ *   <li>{@code warned} 是否已经对玩家播过遇鬼音，离开范围后复位。</li>
+ * </ul>
+ */
+public final class HauntStore extends PersistentState {
+
+    private static final String ID = "smfsaddon_haunts";
+
+    private final Map<BlockPos, Entry> haunts = new HashMap<>();
+
+    /** 世界是否已经布置过初始的鬼方块 */
+    private boolean initialized;
+
+    /**
+     * 初始布置的剩余配额。
+     *
+     * <p>改成"边加载边消耗"之后，初始那几个不再在开服时一次性埋完，
+     * 而是等区块自然加载再放 —— 这样我们永远不会主动触发区块生成。
+     */
+    private int remainingInitial = -1;
+
+    /**
+     * 已经处理过的区块（掷过骰或跳过）。
+     *
+     * <p>只在新区块生成功能开启时才需要，但一直维护 —— 关掉再打开时不会
+     * 把老区块重新掷一遍。
+     */
+    private final java.util.Set<Long> rolled = new java.util.HashSet<>();
+
+    public static HauntStore of(net.minecraft.server.world.ServerWorld world) {
+        return world.getPersistentStateManager().getOrCreate(
+                HauntStore::fromNbt, HauntStore::new, ID);
+    }
+
+    public Map<BlockPos, Entry> haunts() {
+        return haunts;
+    }
+
+    public int remainingInitial() {
+        return remainingInitial;
+    }
+
+    public void setRemainingInitial(int value) {
+        remainingInitial = value;
+        markDirty();
+    }
+
+    public int size() {
+        return haunts.size();
+    }
+
+    public boolean isRolled(long chunkKey) {
+        return rolled.contains(chunkKey);
+    }
+
+    /**
+     * 标记这个区块处理过。
+     *
+     * @return {@code true} 表示第一次（调用方可以继续掷骰）
+     */
+    public boolean markRolled(long chunkKey) {
+        if (!rolled.add(chunkKey)) {
+            return false;
+        }
+        markDirty();
+        return true;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    public void markInitialized() {
+        initialized = true;
+        markDirty();
+    }
+
+    public Entry get(BlockPos pos) {
+        return haunts.get(pos);
+    }
+
+    public void put(BlockPos pos, Entry entry) {
+        haunts.put(pos, entry);
+        markDirty();
+    }
+
+    public void remove(BlockPos pos) {
+        if (haunts.remove(pos) != null) {
+            markDirty();
+        }
+    }
+
+    /** 一条鬼方块的运行时状态 */
+    public static final class Entry {
+
+        public final Identifier ghostType;
+        public long judgedAt;
+        public int revival;
+        /** 上次预警的 tick；0 表示当前范围内没人 */
+        public long warnedAt;
+
+        public Entry(Identifier ghostType) {
+            this.ghostType = ghostType;
+        }
+
+        NbtCompound write() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putString("Type", ghostType.toString());
+            nbt.putLong("JudgedAt", judgedAt);
+            nbt.putInt("Revival", revival);
+            nbt.putLong("WarnedAt", warnedAt);
+            return nbt;
+        }
+
+        static Entry read(NbtCompound nbt) {
+            Identifier type = Identifier.tryParse(nbt.getString("Type"));
+            if (type == null) {
+                return null;
+            }
+            Entry entry = new Entry(type);
+            entry.judgedAt = nbt.getLong("JudgedAt");
+            entry.revival = nbt.getInt("Revival");
+            entry.warnedAt = nbt.getLong("WarnedAt");
+            return entry;
+        }
+    }
+
+    @Override
+    public NbtCompound writeNbt(NbtCompound nbt) {
+        NbtList list = new NbtList();
+        for (Map.Entry<BlockPos, Entry> item : haunts.entrySet()) {
+            NbtCompound one = item.getValue().write();
+            BlockPos pos = item.getKey();
+            one.putInt("X", pos.getX());
+            one.putInt("Y", pos.getY());
+            one.putInt("Z", pos.getZ());
+            list.add(one);
+        }
+        nbt.put("Haunts", list);
+
+        nbt.putBoolean("Initialized", initialized);
+        nbt.putInt("RemainingInitial", remainingInitial);
+
+        long[] keys = new long[rolled.size()];
+        int index = 0;
+        for (long key : rolled) {
+            keys[index++] = key;
+        }
+        nbt.putLongArray("Rolled", keys);
+        return nbt;
+    }
+
+    private static HauntStore fromNbt(NbtCompound nbt) {
+        HauntStore store = new HauntStore();
+        store.initialized = nbt.getBoolean("Initialized");
+        store.remainingInitial = nbt.contains("RemainingInitial")
+                ? nbt.getInt("RemainingInitial") : -1;
+        for (long key : nbt.getLongArray("Rolled")) {
+            store.rolled.add(key);
+        }
+        NbtList list = nbt.getList("Haunts", NbtElement.COMPOUND_TYPE);
+        for (int index = 0; index < list.size(); index++) {
+            NbtCompound one = list.getCompound(index);
+            Entry entry = Entry.read(one);
+            if (entry == null) {
+                continue;
+            }
+            store.haunts.put(new BlockPos(one.getInt("X"), one.getInt("Y"), one.getInt("Z")), entry);
+        }
+        return store;
+    }
+}
