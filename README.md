@@ -357,3 +357,15 @@ java.lang.RuntimeException: Cannot load class net.minecraft.client.gui.screen.Sc
 ## 许可
 
 代码以 **MIT** 授权，见 [LICENSE](LICENSE)。随便用、随便改、随便再发布，保留版权声明即可。
+
+---
+
+## 开发
+
+接手或二次开发看 **[docs/开发交接.md](docs/开发交接.md)**：环境、构建、代码地图、皮嫁骨实现细节、踩坑与排错手册。
+
+```bash
+./gradlew remapJar     # 产物 build/libs/smfsaddon-<version>.jar
+```
+
+> 不要用 `./gradlew build`：`:test` 任务会报 `Type T not present`。
